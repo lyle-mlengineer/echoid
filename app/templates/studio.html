@@ -33,7 +33,18 @@
       </div>
       <div class="speaker-library-grid" data-speaker-list><div class="loading-state"><span class="spinner"></span> Loading speakers…</div></div>
     </section>
-    <section class="content-panel transcript-panel" data-transcript-panel hidden><div class="panel-heading"><div><span class="eyebrow">YOUR CONVERSATION, DECODED</span><h2 data-result-title>Transcript</h2></div><div class="export-actions"><button type="button" data-export="txt">TXT <span>↧</span></button><button type="button" data-export="json">JSON <span>↧</span></button><button type="button" data-export="pdf">PDF <span>↧</span></button></div></div><div class="demo-banner" data-demo-banner hidden>DEMO TRANSCRIPT — Connect a transcription provider to analyze real audio.</div><div class="transcript-results" data-transcript-results></div></section>
+    <section class="content-panel transcript-panel" data-transcript-panel hidden><div class="panel-heading"><div><span class="eyebrow">YOUR CONVERSATION, DECODED</span><h2 data-result-title>Transcript</h2></div><div class="export-actions"><button type="button" data-export="txt">TXT <span>↧</span></button><button type="button" data-export="json">JSON <span>↧</span></button><button type="button" data-export="pdf">PDF <span>↧</span></button></div></div><div class="demo-banner" data-demo-banner hidden>DEMO TRANSCRIPT — Connect a transcription provider to analyze real audio.</div><div class="transcript-filters" data-transcript-filters>
+        <div class="speaker-filter" data-speaker-filter>
+          <button class="filter-dropdown" type="button" data-speaker-filter-toggle aria-expanded="false" aria-controls="speaker-filter-menu"><span class="filter-dropdown-label" data-speaker-filter-label>All speakers</span><span class="filter-dropdown-caret" aria-hidden="true">▾</span></button>
+          <div class="filter-menu" id="speaker-filter-menu" data-speaker-filter-menu hidden>
+            <button class="filter-option filter-option-all" type="button" data-speaker-filter-all><span class="filter-tick" aria-hidden="true">✓</span> All speakers</button>
+            <span class="filter-menu-sep" role="presentation"></span>
+            <div class="filter-menu-list" data-speaker-filter-options></div>
+          </div>
+        </div>
+        <label class="search-box transcript-search"><span>⌕</span><input type="search" placeholder="Search words…" aria-label="Search transcript text" data-transcript-search></label>
+        <span class="transcript-filter-count" data-transcript-count></span>
+      </div><div class="transcript-results" data-transcript-results></div></section>
   </div>
 </section>
 <dialog class="speaker-dialog" data-speaker-dialog aria-labelledby="speaker-dialog-title" aria-describedby="speaker-dialog-description">
@@ -42,14 +53,12 @@
     <span class="speaker-dialog-icon" aria-hidden="true">✎</span>
     <span class="eyebrow">MAKE IT PERSONAL</span>
     <h2 id="speaker-dialog-title">Name this speaker</h2>
-    <p id="speaker-dialog-description">Your new name will update every turn spoken by this speaker.</p>
-    <label class="speaker-name-label" for="speaker-profile-select">Use a saved speaker</label>
-    <select id="speaker-profile-select" class="speaker-profile-select" data-speaker-profile-select>
-      <option value="">Enter a name or choose a saved speaker</option>
-    </select>
-    <label class="speaker-name-label" for="speaker-name">Speaker name</label>
-    <input id="speaker-name" name="name" type="text" maxlength="120" autocomplete="off" required data-speaker-name-input>
-    <button class="speaker-create-link" type="button" data-create-speaker-from-rename>＋ Create a new saved speaker</button>
+    <p id="speaker-dialog-description">Renaming <b data-speaker-rename-target></b>. Every turn with this label will use the new name.</p>
+    <label class="speaker-name-label" for="speaker-name">New speaker name</label>
+    <input id="speaker-name" name="name" type="text" maxlength="120" autocomplete="off" required list="speaker-profile-options" placeholder="Choose a speaker or type a new name" data-speaker-name-input>
+    <datalist id="speaker-profile-options" data-speaker-profile-options></datalist>
+    <small class="speaker-dialog-hint">Choosing another speaker merges both voices under one name.</small>
+    <button class="speaker-create-link" type="button" data-create-speaker-from-rename><span class="speaker-create-icon" aria-hidden="true">＋</span> Create a new saved speaker</button>
     <span class="speaker-dialog-error" data-speaker-error role="alert" hidden></span>
     <div class="speaker-dialog-actions">
       <button class="button button-quiet" type="button" data-cancel-speaker-dialog>Cancel</button>
@@ -77,6 +86,22 @@
     <div class="speaker-dialog-actions">
       <button class="button button-quiet" type="button" data-cancel-speaker-editor>Cancel</button>
       <button class="button button-primary" type="submit" data-save-speaker-profile>Save speaker <span>↗</span></button>
+    </div>
+  </form>
+</dialog>
+<dialog class="speaker-dialog" data-segment-dialog aria-labelledby="segment-dialog-title" aria-describedby="segment-dialog-description">
+  <form class="speaker-dialog-form" data-segment-form>
+    <button class="speaker-dialog-close" type="button" data-close-segment-dialog aria-label="Close dialog">×</button>
+    <span class="speaker-dialog-icon" aria-hidden="true">✎</span>
+    <span class="eyebrow">REFINE THE WORDS</span>
+    <h2 id="segment-dialog-title">Edit this line</h2>
+    <p class="segment-dialog-meta" id="segment-dialog-description"><b data-segment-speaker></b><span class="segment-dialog-dot" aria-hidden="true">·</span><span data-segment-time></span></p>
+    <label class="speaker-name-label" for="segment-text">Transcription</label>
+    <textarea id="segment-text" name="text" rows="5" maxlength="4000" required data-segment-text-input></textarea>
+    <span class="speaker-dialog-error" data-segment-error role="alert" hidden></span>
+    <div class="speaker-dialog-actions">
+      <button class="button button-quiet" type="button" data-cancel-segment-dialog>Cancel</button>
+      <button class="button button-primary" type="submit" data-save-segment>Save changes <span>↗</span></button>
     </div>
   </form>
 </dialog>

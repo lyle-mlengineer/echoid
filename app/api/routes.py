@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 import httpx
 import jwt
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
 from google.auth.exceptions import GoogleAuthError
@@ -33,6 +33,7 @@ from app.api.schemas import (
     PaymentPackageResponse,
     PaymentResponse,
     RegisterRequest,
+    SegmentTextRequest,
     SpeakerCreateRequest,
     SpeakerResponse,
     SpeakerRenameRequest,
@@ -185,6 +186,19 @@ def _owned_generation(
     if not owns:
         raise HTTPException(status_code=404, detail="Generation not found.")
     return record
+
+
+def _visible_segments(
+    segments: list[dict], speakers: list[str], search: str
+) -> list[dict]:
+    wanted = {name.strip().casefold() for name in speakers if name and name.strip()}
+    words = [word.casefold() for word in re.split(r"\s+", (search or "").strip()) if word]
+    return [
+        item
+        for item in segments
+        if (not wanted or item["speaker"].strip().casefold() in wanted)
+        and all(word in item["text"].casefold() for word in words)
+    ]
 
 
 def _payment_package(package_id: str) -> dict[str, int]:
@@ -586,6 +600,19 @@ def get_generation(
     return _generation_response(_owned_generation(db, generation_id, principal))
 
 
+@router.get("/generations/{generation_id}/audio")
+def get_generation_audio(
+    generation_id: UUID,
+    principal=Depends(get_principal),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    record = _owned_generation(db, generation_id, principal)
+    path = Path(record.file_path)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="The audio for this transcript is no longer available.")
+    return FileResponse(path, media_type=ALLOWED_AUDIO.get(path.suffix.lower(), "application/octet-stream"))
+
+
 @router.get("/speakers", response_model=list[SpeakerResponse])
 def list_speakers(
     search: str = Query(default="", max_length=120),
@@ -683,6 +710,43 @@ def rename_generation_speaker(
     return _generation_response(record)
 
 
+@router.patch("/generations/{generation_id}/segments/{segment_index}", response_model=GenerationResponse)
+def update_generation_segment(
+    generation_id: UUID,
+    segment_index: int,
+    request: SegmentTextRequest,
+    principal=Depends(get_principal),
+    db: Session = Depends(get_db),
+) -> GenerationResponse:
+    record = _owned_generation(db, generation_id, principal)
+    segments = json.loads(record.transcript_json)
+    if not 0 <= segment_index < len(segments):
+        raise HTTPException(status_code=404, detail="Segment not found in this transcript.")
+    segments[segment_index]["text"] = request.text
+    record.transcript_json = json.dumps(segments)
+    db.commit()
+    db.refresh(record)
+    return _generation_response(record)
+
+
+@router.delete("/generations/{generation_id}/segments/{segment_index}", response_model=GenerationResponse)
+def delete_generation_segment(
+    generation_id: UUID,
+    segment_index: int,
+    principal=Depends(get_principal),
+    db: Session = Depends(get_db),
+) -> GenerationResponse:
+    record = _owned_generation(db, generation_id, principal)
+    segments = json.loads(record.transcript_json)
+    if not 0 <= segment_index < len(segments):
+        raise HTTPException(status_code=404, detail="Segment not found in this transcript.")
+    del segments[segment_index]
+    record.transcript_json = json.dumps(segments)
+    db.commit()
+    db.refresh(record)
+    return _generation_response(record)
+
+
 @router.delete("/generations/{generation_id}", status_code=204)
 def delete_generation(
     generation_id: UUID,
@@ -700,6 +764,8 @@ def delete_generation(
 def export_generation(
     generation_id: UUID,
     format: str = Query(pattern="^(json|txt|pdf)$"),
+    speakers: list[str] = Query(default=[]),
+    search: str = Query(default="", max_length=200),
     principal=Depends(get_principal),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -707,7 +773,7 @@ def export_generation(
     if user is None:
         raise HTTPException(status_code=401, detail="Create an account to download generation results.")
     record = _owned_generation(db, generation_id, principal)
-    segments = json.loads(record.transcript_json)
+    segments = _visible_segments(json.loads(record.transcript_json), speakers, search)
     if format == "json":
         return Response(
             content=json.dumps(

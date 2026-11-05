@@ -69,6 +69,18 @@ class SpeakerRenameRequest(BaseModel):
         return normalized
 
 
+class SegmentTextRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("text")
+    @classmethod
+    def normalize_text(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Transcript text cannot be blank.")
+        return normalized
+
+
 def validate_speaker_image(value: str | None) -> str | None:
     if value is None:
         return None

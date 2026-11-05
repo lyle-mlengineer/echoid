@@ -16,6 +16,35 @@
     window.setTimeout(() => item.remove(), 4800);
   }
 
+  function confirmChoice({ title, message, confirmLabel = "Delete" }) {
+    const dialog = $("[data-confirm-dialog]");
+    $("[data-confirm-title]", dialog).textContent = title;
+    $("[data-confirm-message]", dialog).textContent = message;
+    const yes = $("[data-confirm-yes]", dialog);
+    yes.textContent = confirmLabel;
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      yes.onclick = () => {
+        finish(true);
+        dialog.close();
+      };
+      dialog.addEventListener("close", () => finish(false), { once: true });
+      $$("[data-cancel-confirm], [data-confirm-cancel]", dialog).forEach((button) => {
+        button.onclick = () => {
+          finish(false);
+          dialog.close();
+        };
+      });
+      dialog.showModal();
+      $("[data-confirm-cancel]", dialog).focus();
+    });
+  }
+
   async function api(path, options = {}) {
     const headers = new Headers(options.headers || {});
     if (accessToken()) headers.set("Authorization", `Bearer ${accessToken()}`);
@@ -77,14 +106,17 @@
     window.setTimeout(() => URL.revokeObjectURL(href), 1000);
   }
 
-  async function exportGeneration(id, format, fallbackName = "transcript") {
+  async function exportGeneration(id, format, fallbackName = "transcript", filters = {}) {
     const token = accessToken();
     if (!token) {
       toast("Create an account or log in to download transcripts.", true);
       redirectToLogin();
       return;
     }
-    const response = await fetch(`${API}/generations/${encodeURIComponent(id)}/export?format=${format}`, {
+    const params = new URLSearchParams({ format });
+    (filters.speakers || []).forEach((speaker) => params.append("speakers", speaker));
+    if (filters.search) params.set("search", filters.search);
+    const response = await fetch(`${API}/generations/${encodeURIComponent(id)}/export?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) {
@@ -97,12 +129,47 @@
     downloadBlob(blob, filename);
   }
 
-  function renderTranscript(container, segments, onSpeakerClick, speakerProfiles = []) {
-    container.replaceChildren();
+  function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function matchesWords(text, words) {
+    const haystack = text.toLocaleLowerCase();
+    return words.every((word) => haystack.includes(word.toLocaleLowerCase()));
+  }
+
+  function appendHighlighted(node, text, words) {
+    if (!words.length) {
+      node.textContent = text;
+      return;
+    }
+    const pattern = [...words].sort((a, b) => b.length - a.length).map(escapeRegExp).join("|");
+    let cursor = 0;
+    for (const match of text.matchAll(new RegExp(`(${pattern})`, "gi"))) {
+      if (match.index > cursor) node.append(document.createTextNode(text.slice(cursor, match.index)));
+      node.append(make("mark", "search-hit", match[0]));
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < text.length) node.append(document.createTextNode(text.slice(cursor)));
+  }
+
+  function renderTranscript(container, segments, onSpeakerClick, speakerProfiles = [], view = {}) {
+    const words = view.words || [];
+    const visible = view.visibleSpeakers || new Set();
     const speakerColors = new Map();
     segments.forEach((segment) => {
-      const row = make("article", "transcript-segment");
       if (!speakerColors.has(segment.speaker)) speakerColors.set(segment.speaker, speakerColors.size % 6 + 1);
+    });
+    const shown = segments.filter((segment) => (
+      (!visible.size || visible.has(segment.speaker)) && matchesWords(segment.text, words)
+    ));
+    container.replaceChildren();
+    if (!shown.length) {
+      container.append(make("div", "transcript-empty", "No transcript lines match the current filters."));
+      return shown;
+    }
+    shown.forEach((segment) => {
+      const row = make("article", "transcript-segment");
       row.classList.add(`speaker-tone-${speakerColors.get(segment.speaker)}`);
       const speaker = make("button", "segment-speaker");
       speaker.type = "button";
@@ -120,13 +187,46 @@
       }
       avatar.setAttribute("aria-hidden", "true");
       speaker.append(avatar, make("span", "speaker-name", segment.speaker));
+      const text = make("p", "segment-text");
+      appendHighlighted(text, segment.text, words);
       row.append(
         make("span", "segment-time", formatDuration(segment.start_seconds).replace(" min", "")),
         speaker,
-        make("p", "segment-text", segment.text),
       );
+      if (view.onPlayClip) {
+        row.classList.add("has-clip");
+        const clip = make("button", "segment-clip", "▶");
+        clip.type = "button";
+        clip.title = `Play this line (${formatDuration(segment.start_seconds).replace(" min", "")} – ${formatDuration(segment.end_seconds).replace(" min", "")})`;
+        clip.setAttribute("aria-label", `Play ${segment.speaker}'s line`);
+        clip.addEventListener("click", () => view.onPlayClip(clip, segment));
+        row.append(clip);
+      }
+      row.append(text);
+      if (view.onEditSegment || view.onDeleteSegment) {
+        row.classList.add("has-actions");
+        const actions = make("div", "segment-actions");
+        if (view.onEditSegment) {
+          const edit = make("button", "segment-action", "✎");
+          edit.type = "button";
+          edit.title = "Edit this line";
+          edit.setAttribute("aria-label", `Edit ${segment.speaker}'s line`);
+          edit.addEventListener("click", () => view.onEditSegment(segment));
+          actions.append(edit);
+        }
+        if (view.onDeleteSegment) {
+          const remove = make("button", "segment-action is-danger", "×");
+          remove.type = "button";
+          remove.title = "Delete this line";
+          remove.setAttribute("aria-label", `Delete ${segment.speaker}'s line`);
+          remove.addEventListener("click", () => view.onDeleteSegment(segment));
+          actions.append(remove);
+        }
+        row.append(actions);
+      }
       container.append(row);
     });
+    return shown;
   }
 
   function generationRow(record, withActions = true) {
@@ -155,7 +255,12 @@
   }
 
   async function confirmDelete(id) {
-    if (!window.confirm("Delete this transcript and its uploaded audio? This cannot be undone.")) return;
+    const approved = await confirmChoice({
+      title: "Delete this transcript?",
+      message: "The transcript and its uploaded audio are removed for good. This cannot be undone.",
+      confirmLabel: "Delete transcript",
+    });
+    if (!approved) return;
     await api(`/generations/${encodeURIComponent(id)}`, { method: "DELETE" });
     toast("Transcript deleted.");
     await Promise.all([loadDashboard(), loadGallery()]);
@@ -279,7 +384,6 @@
     let currentSegments = [];
     let pendingSpeaker = null;
     let speakerProfiles = [];
-    let selectedProfileId = null;
     let editingProfileId = null;
     let pendingProfileForRename = false;
     let editorImageData = null;
@@ -288,7 +392,7 @@
     const speakerInput = $("[data-speaker-name-input]");
     const speakerError = $("[data-speaker-error]");
     const saveSpeaker = $("[data-save-speaker]");
-    const speakerSelect = $("[data-speaker-profile-select]");
+    const speakerOptions = $("[data-speaker-profile-options]");
     const speakerList = $("[data-speaker-list]");
     const speakerSearch = $("[data-speaker-search]");
     const speakerCount = $("[data-speaker-count]");
@@ -302,20 +406,222 @@
     const editorError = $("[data-speaker-editor-error]");
     const saveProfile = $("[data-save-speaker-profile]");
 
-    const renderCurrentTranscript = () => renderTranscript(
-      $("[data-transcript-results]"),
-      currentSegments,
-      openSpeakerRename,
-      speakerProfiles,
-    );
-    function renderSpeakerSelect(profileId = "") {
-      speakerSelect.replaceChildren(make("option", "", "Enter a name or choose a saved speaker"));
-      speakerProfiles.forEach((profile) => {
-        const option = make("option", "", profile.name);
-        option.value = profile.id;
-        speakerSelect.append(option);
+    let speakerFilter = new Set();
+    let searchWords = [];
+    let audioEl = null;
+    let audioUrl = null;
+    let audioGenerationId = null;
+    let clipButton = null;
+    let clipEnd = 0;
+    const filterWrap = $("[data-speaker-filter]");
+    const filterToggle = $("[data-speaker-filter-toggle]");
+    const filterMenu = $("[data-speaker-filter-menu]");
+    const filterLabel = $("[data-speaker-filter-label]");
+    const filterOptions = $("[data-speaker-filter-options]");
+    const filterAll = $("[data-speaker-filter-all]");
+    const filterSearch = $("[data-transcript-search]");
+    const filterCount = $("[data-transcript-count]");
+    const segmentDialog = $("[data-segment-dialog]");
+    const segmentForm = $("[data-segment-form]");
+    const segmentInput = $("[data-segment-text-input]");
+    const segmentError = $("[data-segment-error]");
+    const saveSegment = $("[data-save-segment]");
+    let editingSegment = null;
+
+    const transcriptSpeakers = () => {
+      const names = [];
+      currentSegments.forEach((segment) => {
+        if (!names.some((name) => name.toLocaleLowerCase() === segment.speaker.toLocaleLowerCase())) {
+          names.push(segment.speaker);
+        }
       });
-      speakerSelect.value = profileId;
+      return names;
+    };
+
+    function clearFilters() {
+      speakerFilter.clear();
+      searchWords = [];
+      if (filterSearch) filterSearch.value = "";
+    }
+
+    function renderCurrentTranscript() {
+      if (audioEl) audioEl.pause();
+      const shown = renderTranscript(
+        $("[data-transcript-results]"),
+        currentSegments,
+        openSpeakerRename,
+        speakerProfiles,
+        {
+          words: searchWords,
+          visibleSpeakers: speakerFilter,
+          onPlayClip: generationId ? playClip : null,
+          onEditSegment: openSegmentEdit,
+          onDeleteSegment: deleteSegment,
+        },
+      );
+      renderSpeakerFilters();
+      filterCount.textContent = shown.length === currentSegments.length
+        ? `${currentSegments.length} line${currentSegments.length === 1 ? "" : "s"}`
+        : `${shown.length} of ${currentSegments.length} lines`;
+    }
+
+    function filterOptionNode(name) {
+      const option = make("label", "filter-option");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.className = "filter-checkbox";
+      box.dataset.speakerFilter = name;
+      const tick = make("span", "filter-tick", "✓");
+      tick.setAttribute("aria-hidden", "true");
+      option.append(box, tick, make("span", "filter-option-name", name));
+      return option;
+    }
+
+    function renderSpeakerFilters() {
+      const names = transcriptSpeakers();
+      speakerFilter = new Set([...speakerFilter].filter((name) => names.includes(name)));
+      const listed = $$("[data-speaker-filter]", filterOptions).map((box) => box.dataset.speakerFilter);
+      if (listed.join(" | ") !== names.join(" | ")) {
+        filterOptions.replaceChildren(...names.map(filterOptionNode));
+      }
+      $$("[data-speaker-filter]", filterOptions).forEach((box) => {
+        box.checked = speakerFilter.has(box.dataset.speakerFilter);
+      });
+      filterAll.classList.toggle("is-active", speakerFilter.size === 0);
+      filterToggle.classList.toggle("is-filled", speakerFilter.size > 0);
+      filterLabel.textContent = speakerFilter.size === 0
+        ? "All speakers"
+        : speakerFilter.size === 1
+          ? [...speakerFilter][0]
+          : `${speakerFilter.size} speakers`;
+    }
+
+    function closeFilterMenu() {
+      if (!filterMenu || filterMenu.hidden) return;
+      filterMenu.hidden = true;
+      filterToggle.setAttribute("aria-expanded", "false");
+    }
+
+    function renderSpeakerOptions() {
+      const names = transcriptSpeakers();
+      speakerProfiles.forEach((profile) => {
+        if (!names.some((name) => name.toLocaleLowerCase() === profile.name.toLocaleLowerCase())) {
+          names.push(profile.name);
+        }
+      });
+      speakerOptions.replaceChildren();
+      names.forEach((name) => {
+        const option = make("option");
+        option.value = name;
+        speakerOptions.append(option);
+      });
+    }
+
+    const profileForName = (name) => {
+      const query = name.trim().toLocaleLowerCase();
+      return speakerProfiles.find((profile) => profile.name.toLocaleLowerCase() === query) || null;
+    };
+
+    function resetClipButton() {
+      if (!clipButton) return;
+      clipButton.classList.remove("is-playing");
+      clipButton.textContent = "▶";
+      clipButton = null;
+    }
+
+    async function loadAudioSource(id) {
+      if (audioEl && audioGenerationId === id) return audioEl;
+      const headers = {};
+      if (accessToken()) headers.Authorization = `Bearer ${accessToken()}`;
+      else if (sessionStorage.getItem(guestKey)) headers["X-Guest-Token"] = sessionStorage.getItem(guestKey);
+      const response = await fetch(`${API}/generations/${encodeURIComponent(id)}/audio`, { headers });
+      if (!response.ok) {
+        throw new Error(response.status === 404
+          ? "The audio for this transcript is no longer available."
+          : `Audio could not be loaded (${response.status}).`);
+      }
+      const blob = await response.blob();
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      audioUrl = URL.createObjectURL(blob);
+      if (!audioEl) {
+        audioEl = new Audio();
+        audioEl.addEventListener("timeupdate", () => {
+          if (clipButton && audioEl.currentTime >= clipEnd) audioEl.pause();
+        });
+        audioEl.addEventListener("pause", resetClipButton);
+        audioEl.addEventListener("ended", resetClipButton);
+      }
+      audioEl.src = audioUrl;
+      audioGenerationId = id;
+      if (audioEl.readyState < 1) {
+        await new Promise((resolve) => audioEl.addEventListener("loadedmetadata", resolve, { once: true }));
+      }
+      return audioEl;
+    }
+
+    async function playClip(button, segment) {
+      try {
+        const el = await loadAudioSource(generationId);
+        if (clipButton === button) {
+          if (el.paused) await el.play();
+          else el.pause();
+          return;
+        }
+        resetClipButton();
+        el.pause();
+        clipButton = button;
+        clipEnd = Number(segment.end_seconds) || 0;
+        el.currentTime = Number(segment.start_seconds) || 0;
+        button.classList.add("is-playing");
+        button.textContent = "❚❚";
+        await el.play();
+      } catch (error) {
+        resetClipButton();
+        toast(error.message, true);
+      }
+    }
+    const segmentRange = (segment) => {
+      const label = (seconds) => formatDuration(seconds).replace(" min", "");
+      return `${label(segment.start_seconds)} – ${label(segment.end_seconds)}`;
+    };
+
+    function openSegmentEdit(segment) {
+      editingSegment = segment;
+      $("[data-segment-speaker]").textContent = segment.speaker;
+      $("[data-segment-time]").textContent = segmentRange(segment);
+      segmentInput.value = segment.text;
+      segmentError.hidden = true;
+      segmentError.textContent = "";
+      segmentDialog.showModal();
+      segmentInput.focus();
+      segmentInput.select();
+    }
+
+    async function deleteSegment(segment) {
+      const index = currentSegments.indexOf(segment);
+      if (index < 0) return;
+      const preview = segment.text.length > 90 ? `${segment.text.slice(0, 90)}…` : segment.text;
+      const approved = await confirmChoice({
+        title: "Delete this line?",
+        message: `${segment.speaker} said “${preview}” at ${segmentRange(segment)}. It will be removed from this transcript and from every export.`,
+        confirmLabel: "Delete line",
+      });
+      if (!approved) return;
+      try {
+        if (generationId) {
+          const result = await api(
+            `/generations/${encodeURIComponent(generationId)}/segments/${index}`,
+            { method: "DELETE" },
+          );
+          currentSegments = result.segments;
+        } else {
+          currentSegments.splice(index, 1);
+        }
+        renderCurrentTranscript();
+        toast("Line deleted.");
+      } catch (error) {
+        toast(error.message, true);
+      }
     }
     function renderSpeakerDirectory() {
       if (!speakerList) return;
@@ -368,7 +674,7 @@
       try {
         speakerProfiles = await api("/speakers");
         renderSpeakerDirectory();
-        renderSpeakerSelect(selectedProfileId || "");
+        renderSpeakerOptions();
         renderCurrentTranscript();
       } catch (error) {
         speakerList.replaceChildren(make("div", "speaker-library-empty is-error", error.message));
@@ -376,14 +682,13 @@
     }
     function openSpeakerRename(speaker) {
       pendingSpeaker = speaker;
-      selectedProfileId = null;
-      speakerInput.value = speaker;
+      $("[data-speaker-rename-target]").textContent = speaker;
+      speakerInput.value = "";
       speakerError.hidden = true;
       speakerError.textContent = "";
-      renderSpeakerSelect();
+      renderSpeakerOptions();
       speakerDialog.showModal();
       speakerInput.focus();
-      speakerInput.select();
     }
     function updateEditorImagePreview() {
       editorImagePreview.replaceChildren();
@@ -420,6 +725,7 @@
     const previewSample = () => showSamplePreview((segments) => {
       generationId = null;
       currentSegments = segments;
+      clearFilters();
       renderCurrentTranscript();
     });
 
@@ -485,14 +791,35 @@
       openSpeakerEditor(null, true);
     });
     speakerSearch?.addEventListener("input", renderSpeakerDirectory);
-    speakerSelect?.addEventListener("change", () => {
-      const profile = speakerProfiles.find((item) => item.id === speakerSelect.value);
-      selectedProfileId = profile?.id || null;
-      if (profile) speakerInput.value = profile.name;
+    filterToggle?.addEventListener("click", () => {
+      const open = filterMenu.hidden;
+      filterMenu.hidden = !open;
+      filterToggle.setAttribute("aria-expanded", String(open));
     });
-    speakerInput?.addEventListener("input", () => {
-      selectedProfileId = null;
-      speakerSelect.value = "";
+    filterOptions?.addEventListener("change", (event) => {
+      const box = event.target.closest("[data-speaker-filter]");
+      if (!box) return;
+      if (box.checked) speakerFilter.add(box.dataset.speakerFilter);
+      else speakerFilter.delete(box.dataset.speakerFilter);
+      renderCurrentTranscript();
+    });
+    filterAll?.addEventListener("click", () => {
+      speakerFilter.clear();
+      closeFilterMenu();
+      renderCurrentTranscript();
+    });
+    filterWrap?.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      closeFilterMenu();
+      filterToggle.focus();
+    });
+    document.addEventListener("click", (event) => {
+      if (!filterWrap || filterMenu.hidden) return;
+      if (!filterWrap.contains(event.target)) closeFilterMenu();
+    });
+    filterSearch?.addEventListener("input", () => {
+      searchWords = filterSearch.value.split(/\s+/).filter(Boolean);
+      renderCurrentTranscript();
     });
     editorName?.addEventListener("input", updateEditorImagePreview);
     editorImageInput?.addEventListener("change", () => {
@@ -530,7 +857,13 @@
       const removeButton = event.target.closest("[data-remove-speaker]");
       if (!removeButton) return;
       const profile = speakerProfiles.find((item) => item.id === removeButton.dataset.removeSpeaker);
-      if (!profile || !window.confirm(`Delete ${profile.name} from your saved speakers?`)) return;
+      if (!profile) return;
+      const approved = await confirmChoice({
+        title: `Delete ${profile.name}?`,
+        message: "This speaker is removed from your voice directory. Transcripts that already use the name stay unchanged.",
+        confirmLabel: "Delete speaker",
+      });
+      if (!approved) return;
       try {
         await api(`/speakers/${encodeURIComponent(profile.id)}`, { method: "DELETE" });
         await loadSpeakers();
@@ -562,13 +895,11 @@
           savedProfile,
         ].sort((a, b) => a.name.localeCompare(b.name));
         renderSpeakerDirectory();
-        renderSpeakerSelect();
+        renderSpeakerOptions();
         renderCurrentTranscript();
         editorDialog.close();
         if (pendingProfileForRename) {
           openSpeakerRename(pendingSpeaker);
-          selectedProfileId = savedProfile.id;
-          renderSpeakerSelect(selectedProfileId);
           speakerInput.value = savedProfile.name;
         } else {
           toast(editingProfileId ? "Speaker updated." : "Speaker saved.");
@@ -603,7 +934,7 @@
             body: JSON.stringify({
               speaker: pendingSpeaker,
               name,
-              speaker_profile_id: selectedProfileId,
+              speaker_profile_id: profileForName(name)?.id || null,
             }),
           });
           currentSegments = result.segments;
@@ -621,6 +952,48 @@
         saveSpeaker.disabled = false;
       }
     });
+    $("[data-close-segment-dialog]")?.addEventListener("click", () => segmentDialog.close());
+    $("[data-cancel-segment-dialog]")?.addEventListener("click", () => segmentDialog.close());
+    segmentDialog?.addEventListener("click", (event) => {
+      if (event.target === segmentDialog) segmentDialog.close();
+    });
+    segmentForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const text = segmentInput.value.trim();
+      if (!text) {
+        segmentInput.reportValidity();
+        return;
+      }
+      const index = currentSegments.indexOf(editingSegment);
+      if (index < 0) {
+        segmentDialog.close();
+        return;
+      }
+      saveSegment.disabled = true;
+      segmentError.hidden = true;
+      try {
+        if (generationId) {
+          const result = await api(
+            `/generations/${encodeURIComponent(generationId)}/segments/${index}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text }),
+            },
+          );
+          currentSegments = result.segments;
+        } else {
+          currentSegments[index] = { ...editingSegment, text };
+        }
+        renderCurrentTranscript();
+        segmentDialog.close();
+      } catch (error) {
+        segmentError.textContent = error.message;
+        segmentError.hidden = false;
+      } finally {
+        saveSegment.disabled = false;
+      }
+    });
     loadSpeakers();
 
     async function runTranscription(file) {
@@ -635,6 +1008,7 @@
         generationId = result.id;
         $("[data-result-title]").textContent = result.filename;
         currentSegments = result.segments;
+        clearFilters();
         renderCurrentTranscript();
         $("[data-demo-banner]").hidden = !result.demo_mode;
         $$("[data-export]").forEach((button) => { button.disabled = !accessToken(); });
@@ -663,7 +1037,10 @@
     $$("[data-export]").forEach((button) => button.addEventListener("click", async () => {
       if (!generationId) return;
       try {
-        await exportGeneration(generationId, button.dataset.export, "echoid-transcript");
+        await exportGeneration(generationId, button.dataset.export, "echoid-transcript", {
+          speakers: [...speakerFilter],
+          search: searchWords.join(" "),
+        });
       } catch (error) {
         toast(error.message, true);
       }
@@ -675,6 +1052,7 @@
         generationId = generation.id;
         $("[data-result-title]").textContent = generation.filename;
         currentSegments = generation.segments;
+        clearFilters();
         renderCurrentTranscript();
         $("[data-demo-banner]").hidden = !generation.demo_mode;
           $$("[data-export]").forEach((button) => { button.disabled = !accessToken(); });

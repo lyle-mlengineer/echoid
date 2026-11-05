@@ -44,6 +44,16 @@
     </div>
   </footer>
   <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <dialog class="confirm-dialog" data-confirm-dialog aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message">
+    <button class="confirm-dialog-close" type="button" data-cancel-confirm aria-label="Close dialog">×</button>
+    <span class="confirm-dialog-icon" aria-hidden="true">!</span>
+    <h2 id="confirm-dialog-title" data-confirm-title>Are you sure?</h2>
+    <p id="confirm-dialog-message" data-confirm-message></p>
+    <div class="confirm-dialog-actions">
+      <button class="button button-quiet" type="button" data-confirm-cancel>Cancel</button>
+      <button class="button button-danger" type="button" data-confirm-yes>Delete</button>
+    </div>
+  </dialog>
   <script>window.ECHOID_FIREBASE = {{ firebase_config|tojson }};</script>
   <script src="/static/js/app.js" defer></script>
   {% block scripts %}{% endblock %}

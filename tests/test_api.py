@@ -397,3 +397,138 @@ def test_mpesa_manual_payment_reconciles_c2b_callback(tmp_path):
         assert client.post(callback_url, json=payload).status_code == 200
         headers = {"Authorization": f"Bearer {registration.json()['access_token']}"}
         assert client.get("/api/v1/auth/me", headers=headers).json()["credits"] == 53
+
+
+def register(client, email):
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "display_name": email.split("@")[0], "password": "safe-passphrase-123"},
+    )
+    assert response.status_code == 201
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def test_export_follows_speaker_filter_and_word_search(tmp_path):
+    with make_client(tmp_path) as client:
+        headers = register(client, "filters@example.com")
+        result = client.post(
+            "/api/v1/generations",
+            headers=headers,
+            files={"audio": ("meeting.wav", b"sample audio", "audio/wav")},
+        ).json()
+        export = f"/api/v1/generations/{result['id']}/export"
+
+        single = client.get(export, headers=headers, params={"format": "txt", "speakers": "Speaker 1"})
+        assert single.status_code == 200
+        assert single.text.strip().split("\n") == [
+            "Speaker 1: [Demo only: configure a transcription provider to analyze audio]",
+        ] * 2
+        assert "Speaker 2:" not in single.text
+
+        several = client.get(
+            export,
+            headers=headers,
+            params={"format": "json", "speakers": ["Speaker 1", "Speaker 3"]},
+        )
+        assert [item["speaker"] for item in several.json()["segments"]] == [
+            "Speaker 1",
+            "Speaker 1",
+            "Speaker 3",
+        ]
+
+        words = client.get(export, headers=headers, params={"format": "txt", "search": "configure PROVIDER"})
+        assert len(words.text.strip().split("\n")) == 4
+        assert client.get(
+            export, headers=headers, params={"format": "txt", "search": "quarterly"}
+        ).text == ""
+
+        combined = client.get(
+            export,
+            headers=headers,
+            params={"format": "json", "speakers": "Speaker 3", "search": "analyze"},
+        )
+        assert [item["speaker"] for item in combined.json()["segments"]] == ["Speaker 3"]
+        assert client.get(
+            export,
+            headers=headers,
+            params={"format": "json", "speakers": "Speaker 3", "search": "quarterly"},
+        ).json()["segments"] == []
+
+
+def test_generation_audio_is_streamed_to_its_owner_only(tmp_path):
+    with make_client(tmp_path) as client:
+        owner = register(client, "owner@example.com")
+        result = client.post(
+            "/api/v1/generations",
+            headers=owner,
+            files={"audio": ("meeting.wav", b"sample audio", "audio/wav")},
+        ).json()
+        audio = f"/api/v1/generations/{result['id']}/audio"
+
+        full = client.get(audio, headers=owner)
+        assert full.status_code == 200
+        assert full.headers["content-type"] == "audio/wav"
+        assert full.content == b"sample audio"
+
+        partial = client.get(audio, headers={**owner, "Range": "bytes=0-3"})
+        assert partial.status_code == 206
+        assert partial.content == b"samp"
+
+        guest_token = client.post("/api/v1/auth/guest").json()["guest_token"]
+        guest = client.post(
+            "/api/v1/generations",
+            headers={"X-Guest-Token": guest_token},
+            files={"audio": ("memo.mp3", b"guest audio", "audio/mpeg")},
+        ).json()
+        assert client.get(
+            f"/api/v1/generations/{guest['id']}/audio", headers={"X-Guest-Token": guest_token}
+        ).content == b"guest audio"
+        assert client.get(audio, headers=register(client, "other@example.com")).status_code == 404
+
+
+def test_segments_can_be_edited_and_deleted_by_their_owner(tmp_path):
+    with make_client(tmp_path) as client:
+        owner = register(client, "editor@example.com")
+        result = client.post(
+            "/api/v1/generations",
+            headers=owner,
+            files={"audio": ("meeting.wav", b"sample audio", "audio/wav")},
+        ).json()
+        generation = f"/api/v1/generations/{result['id']}"
+        segment = f"{generation}/segments"
+
+        edited = client.patch(f"{segment}/1", headers=owner, json={"text": "  Revised line.  "})
+        assert edited.status_code == 200
+        assert edited.json()["segments"][1]["text"] == "Revised line."
+        assert client.get(generation, headers=owner).json()["segments"][1]["text"] == "Revised line."
+        assert "Speaker 2: Revised line." in client.get(
+            f"{generation}/export", headers=owner, params={"format": "txt"}
+        ).text
+
+        assert client.patch(f"{segment}/1", headers=owner, json={"text": "   "}).status_code == 422
+        assert client.patch(f"{segment}/9", headers=owner, json={"text": "Nope"}).status_code == 404
+        assert client.patch(f"{segment}/-1", headers=owner, json={"text": "Nope"}).status_code == 404
+
+        removed = client.delete(f"{segment}/0", headers=owner)
+        assert removed.status_code == 200
+        assert [item["speaker"] for item in removed.json()["segments"]] == [
+            "Speaker 2",
+            "Speaker 1",
+            "Speaker 3",
+        ]
+        assert client.delete(f"{segment}/9", headers=owner).status_code == 404
+
+        intruder = register(client, "intruder@example.com")
+        assert client.patch(f"{segment}/0", headers=intruder, json={"text": "Mine now"}).status_code == 404
+        assert client.delete(f"{segment}/0", headers=intruder).status_code == 404
+
+        guest_token = client.post("/api/v1/auth/guest").json()["guest_token"]
+        guest = client.post(
+            "/api/v1/generations",
+            headers={"X-Guest-Token": guest_token},
+            files={"audio": ("memo.wav", b"guest audio", "audio/wav")},
+        ).json()
+        guest_segment = f"/api/v1/generations/{guest['id']}/segments/0"
+        guest_headers = {"X-Guest-Token": guest_token}
+        assert client.patch(guest_segment, headers=guest_headers, json={"text": "Guest edit"}).json()["segments"][0]["text"] == "Guest edit"
+        assert client.delete(guest_segment, headers=guest_headers).json()["segments"][0]["speaker"] == "Speaker 2"
