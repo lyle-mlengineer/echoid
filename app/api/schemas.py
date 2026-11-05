@@ -53,6 +53,19 @@ class TranscriptSegmentResponse(BaseModel):
     end_seconds: float
 
 
+class SpeakerRenameRequest(BaseModel):
+    speaker: str = Field(min_length=1, max_length=120)
+    name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("speaker", "name")
+    @classmethod
+    def normalize_speaker_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Speaker names cannot be blank.")
+        return normalized
+
+
 class GenerationResponse(BaseModel):
     id: UUID
     filename: str

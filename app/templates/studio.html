@@ -25,4 +25,20 @@
     <section class="content-panel transcript-panel" data-transcript-panel hidden><div class="panel-heading"><div><span class="eyebrow">YOUR CONVERSATION, DECODED</span><h2 data-result-title>Transcript</h2></div><div class="export-actions"><button type="button" data-export="txt">TXT <span>↧</span></button><button type="button" data-export="json">JSON <span>↧</span></button><button type="button" data-export="pdf">PDF <span>↧</span></button></div></div><div class="demo-banner" data-demo-banner hidden>DEMO TRANSCRIPT — Connect a transcription provider to analyze real audio.</div><div class="transcript-results" data-transcript-results></div></section>
   </div>
 </section>
+<dialog class="speaker-dialog" data-speaker-dialog aria-labelledby="speaker-dialog-title" aria-describedby="speaker-dialog-description">
+  <form class="speaker-dialog-form" data-speaker-form>
+    <button class="speaker-dialog-close" type="button" data-close-speaker-dialog aria-label="Close dialog">×</button>
+    <span class="speaker-dialog-icon" aria-hidden="true">✎</span>
+    <span class="eyebrow">MAKE IT PERSONAL</span>
+    <h2 id="speaker-dialog-title">Name this speaker</h2>
+    <p id="speaker-dialog-description">Your new name will update every turn spoken by this speaker.</p>
+    <label class="speaker-name-label" for="speaker-name">Speaker name</label>
+    <input id="speaker-name" name="name" type="text" maxlength="120" autocomplete="off" required data-speaker-name-input>
+    <span class="speaker-dialog-error" data-speaker-error role="alert" hidden></span>
+    <div class="speaker-dialog-actions">
+      <button class="button button-quiet" type="button" data-cancel-speaker-dialog>Cancel</button>
+      <button class="button button-primary" type="submit" data-save-speaker>Save name <span>↗</span></button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}

@@ -33,6 +33,7 @@ from app.api.schemas import (
     PaymentPackageResponse,
     PaymentResponse,
     RegisterRequest,
+    SpeakerRenameRequest,
     TokenResponse,
     UserResponse,
 )
@@ -562,6 +563,26 @@ def get_generation(
     db: Session = Depends(get_db),
 ) -> GenerationResponse:
     return _generation_response(_owned_generation(db, generation_id, principal))
+
+
+@router.patch("/generations/{generation_id}/speakers", response_model=GenerationResponse)
+def rename_generation_speaker(
+    generation_id: UUID,
+    request: SpeakerRenameRequest,
+    principal=Depends(get_principal),
+    db: Session = Depends(get_db),
+) -> GenerationResponse:
+    record = _owned_generation(db, generation_id, principal)
+    segments = json.loads(record.transcript_json)
+    if not any(item["speaker"] == request.speaker for item in segments):
+        raise HTTPException(status_code=404, detail="Speaker not found in this transcript.")
+    for item in segments:
+        if item["speaker"] == request.speaker:
+            item["speaker"] = request.name
+    record.transcript_json = json.dumps(segments)
+    db.commit()
+    db.refresh(record)
+    return _generation_response(record)
 
 
 @router.delete("/generations/{generation_id}", status_code=204)

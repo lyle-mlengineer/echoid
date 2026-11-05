@@ -31,7 +31,25 @@ class DemoTranscriptionProvider:
                     speaker="Speaker 1",
                     text="[Demo only: configure a transcription provider to analyze audio]",
                     start_seconds=0,
-                    end_seconds=0,
+                    end_seconds=2,
+                ),
+                TranscriptSegment(
+                    speaker="Speaker 2",
+                    text="[Demo only: configure a transcription provider to analyze audio]",
+                    start_seconds=2,
+                    end_seconds=4,
+                ),
+                TranscriptSegment(
+                    speaker="Speaker 1",
+                    text="[Demo only: configure a transcription provider to analyze audio]",
+                    start_seconds=4,
+                    end_seconds=6,
+                ),
+                TranscriptSegment(
+                    speaker="Speaker 3",
+                    text="[Demo only: configure a transcription provider to analyze audio]",
+                    start_seconds=6,
+                    end_seconds=10,
                 )
             ],
             duration_seconds=None,

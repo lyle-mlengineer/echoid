@@ -97,13 +97,18 @@
     downloadBlob(blob, filename);
   }
 
-  function renderTranscript(container, segments) {
+  function renderTranscript(container, segments, onSpeakerClick) {
     container.replaceChildren();
     segments.forEach((segment) => {
       const row = make("article", "transcript-segment");
+      const speaker = make("button", "segment-speaker", segment.speaker);
+      speaker.type = "button";
+      speaker.title = `Rename ${segment.speaker}`;
+      speaker.setAttribute("aria-label", `Rename speaker ${segment.speaker}`);
+      speaker.addEventListener("click", () => onSpeakerClick(segment.speaker));
       row.append(
         make("span", "segment-time", formatDuration(segment.start_seconds).replace(" min", "")),
-        make("b", "segment-speaker", segment.speaker),
+        speaker,
         make("p", "segment-text", segment.text),
       );
       container.append(row);
@@ -257,6 +262,32 @@
     if (!fileInput || !transcribe) return;
     let selectedFile = null;
     let generationId = null;
+    let currentSegments = [];
+    let pendingSpeaker = null;
+    const speakerDialog = $("[data-speaker-dialog]");
+    const speakerForm = $("[data-speaker-form]");
+    const speakerInput = $("[data-speaker-name-input]");
+    const speakerError = $("[data-speaker-error]");
+    const saveSpeaker = $("[data-save-speaker]");
+
+    const renderCurrentTranscript = () => renderTranscript(
+      $("[data-transcript-results]"),
+      currentSegments,
+      (speaker) => {
+        pendingSpeaker = speaker;
+        speakerInput.value = speaker;
+        speakerError.hidden = true;
+        speakerError.textContent = "";
+        speakerDialog.showModal();
+        speakerInput.focus();
+        speakerInput.select();
+      },
+    );
+    const previewSample = () => showSamplePreview((segments) => {
+      generationId = null;
+      currentSegments = segments;
+      renderCurrentTranscript();
+    });
 
     const showStatus = (message, isError = false) => {
       status.hidden = !message;
@@ -302,9 +333,46 @@
 
     $$("[data-studio-tab]").forEach((tab) => tab.addEventListener("click", () => {
       $$("[data-studio-tab]").forEach((item) => item.classList.toggle("is-selected", item === tab));
-      if (tab.dataset.studioTab === "sample") showSamplePreview();
+      if (tab.dataset.studioTab === "sample") previewSample();
     }));
-    $("[data-use-sample]")?.addEventListener("click", showSamplePreview);
+    $("[data-use-sample]")?.addEventListener("click", previewSample);
+    const closeSpeakerDialog = () => speakerDialog.close();
+    $("[data-close-speaker-dialog]")?.addEventListener("click", closeSpeakerDialog);
+    $("[data-cancel-speaker-dialog]")?.addEventListener("click", closeSpeakerDialog);
+    speakerDialog?.addEventListener("click", (event) => {
+      if (event.target === speakerDialog) closeSpeakerDialog();
+    });
+    speakerForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = speakerInput.value.trim();
+      if (!name || !pendingSpeaker) {
+        speakerInput.reportValidity();
+        return;
+      }
+      saveSpeaker.disabled = true;
+      speakerError.hidden = true;
+      try {
+        if (generationId) {
+          const result = await api(`/generations/${encodeURIComponent(generationId)}/speakers`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ speaker: pendingSpeaker, name }),
+          });
+          currentSegments = result.segments;
+        } else {
+          currentSegments = currentSegments.map((segment) => (
+            segment.speaker === pendingSpeaker ? { ...segment, speaker: name } : segment
+          ));
+        }
+        renderCurrentTranscript();
+        speakerDialog.close();
+      } catch (error) {
+        speakerError.textContent = error.message;
+        speakerError.hidden = false;
+      } finally {
+        saveSpeaker.disabled = false;
+      }
+    });
 
     async function runTranscription(file) {
       transcribe.disabled = true;
@@ -317,7 +385,8 @@
         const result = await api("/generations", { method: "POST", body });
         generationId = result.id;
         $("[data-result-title]").textContent = result.filename;
-        renderTranscript($("[data-transcript-results]"), result.segments);
+        currentSegments = result.segments;
+        renderCurrentTranscript();
         $("[data-demo-banner]").hidden = !result.demo_mode;
         $$("[data-export]").forEach((button) => { button.disabled = !accessToken(); });
         resultPanel.hidden = false;
@@ -356,7 +425,8 @@
         const generation = await api(`/generations/${encodeURIComponent(queryId)}`);
         generationId = generation.id;
         $("[data-result-title]").textContent = generation.filename;
-        renderTranscript($("[data-transcript-results]"), generation.segments);
+        currentSegments = generation.segments;
+        renderCurrentTranscript();
         $("[data-demo-banner]").hidden = !generation.demo_mode;
           $$("[data-export]").forEach((button) => { button.disabled = !accessToken(); });
         resultPanel.hidden = false;
@@ -366,16 +436,15 @@
     }
   }
 
-  function showSamplePreview() {
+  function showSamplePreview(onSegments) {
     const panel = $("[data-transcript-panel]");
     const title = $("[data-result-title]");
-    const results = $("[data-transcript-results]");
     const banner = $("[data-demo-banner]");
-    if (!panel || !results) return;
+    if (!panel) return;
     title.textContent = "A quick preview";
     banner.hidden = false;
     banner.textContent = "EXAMPLE PREVIEW — These sample lines are illustrative, not generated from an audio recording.";
-    renderTranscript(results, [
+    onSegments([
       { speaker: "ALEX", text: "Did the Q3 numbers land yet?", start_seconds: 4, end_seconds: 7 },
       { speaker: "PRIYA", text: "Uploading the deck now.", start_seconds: 8, end_seconds: 10 },
       { speaker: "ALEX", text: "Perfect. Let's review it together.", start_seconds: 11, end_seconds: 14 },

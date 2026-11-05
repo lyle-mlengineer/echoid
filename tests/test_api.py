@@ -57,6 +57,32 @@ def test_registration_login_and_generation_exports(tmp_path):
             headers=headers,
         ).headers["content-type"] == "application/pdf"
 
+        renamed = client.patch(
+            f"/api/v1/generations/{result['id']}/speakers",
+            headers=headers,
+            json={"speaker": "Speaker 1", "name": "Alice"},
+        )
+        assert renamed.status_code == 200
+        assert [item["speaker"] for item in renamed.json()["segments"]] == [
+            "Alice",
+            "Speaker 2",
+            "Alice",
+            "Speaker 3",
+        ]
+        assert client.get(
+            f"/api/v1/generations/{result['id']}/export?format=txt",
+            headers=headers,
+        ).text.count("Alice:") == 2
+        assert client.get(
+            f"/api/v1/generations/{result['id']}/export?format=json",
+            headers=headers,
+        ).json()["segments"][0]["speaker"] == "Alice"
+        assert client.patch(
+            f"/api/v1/generations/{result['id']}/speakers",
+            headers=headers,
+            json={"speaker": "Unknown", "name": "Bob"},
+        ).status_code == 404
+
         login = client.post(
             "/api/v1/auth/login",
             json={"email": "USER@example.com", "password": "safe-passphrase-123"},
@@ -153,6 +179,7 @@ def test_jinja_pages_and_responsive_assets_are_served(tmp_path):
         assert "@media (max-width: 680px)" in css.text
         assert script.status_code == 200
         assert "data-transcribe" in client.get("/studio").text
+        assert "data-speaker-dialog" in client.get("/studio").text
 
 
 def test_mpesa_callback_credits_once_and_checks_amount(tmp_path):
