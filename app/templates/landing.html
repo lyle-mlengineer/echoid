@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}EchoID — Hear who spoke{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-glow hero-glow-one"></div><div class="hero-glow hero-glow-two"></div>
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow eyebrow-light"><span class="eyebrow-dot"></span> AUDIO, MADE UNDERSTANDABLE</div>
+      <h1>HEAR<br>WHO<br><span class="hero-highlight">SPOKE.</span></h1>
+      <p class="hero-description">EchoID separates every voice in your audio and writes down exactly what each person said — so you can focus on the conversation, not replaying it.</p>
+      <div class="hero-actions">
+        <a class="button button-primary button-large" href="/studio">Try the studio demo <span aria-hidden="true">↗</span></a>
+        <a class="button button-outline-light button-large" href="/register">Get started</a>
+      </div>
+      <div class="hero-proof"><span class="proof-avatars"><i>A</i><i>M</i><i>J</i></span><span>Made for conversations that matter</span></div>
+    </div>
+    <div class="hero-visual" aria-label="Preview of speaker-separated transcript">
+      <div class="orbit orbit-outer"></div><div class="orbit orbit-inner"></div>
+      <div class="orbit-core">
+        <div class="transcript-preview">
+          <div class="preview-top"><span class="live-dot"></span><span>Sample call · recorded</span><span class="preview-more">•••</span></div>
+          <div class="waveform" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div class="transcript-line"><b class="speaker-alex">ALEX</b><span>Did the Q3 numbers land yet?</span></div>
+          <div class="transcript-line"><b class="speaker-priya">PRIYA</b><span>Uploading the deck now.</span></div>
+          <div class="preview-time">00:18 <span>·</span> 02:41</div>
+        </div>
+      </div>
+      <span class="float-pill pill-languages"><span>✦</span> Recorded audio</span>
+      <span class="float-pill pill-latency"><span>↯</span> Speaker labels</span>
+      <span class="float-pill pill-accuracy"><span>✓</span> Speaker diarization</span>
+      <a class="float-pill pill-demo" href="/studio">Try a sample <span>↗</span></a>
+      <div class="visual-caption">ONE RECORDING. EVERY VOICE.</div>
+    </div>
+  </div>
+  <div class="hero-bottom"><span>BUILT FOR BETTER CONVERSATIONS</span><span class="scroll-cue">SCROLL TO EXPLORE <i>↓</i></span></div>
+</section>
+
+<section class="trust-strip">
+  <div><span class="trust-icon">◉</span><span>Speaker-aware transcription</span></div>
+  <div><span class="trust-icon">◷</span><span>Recorded audio uploads</span></div>
+  <div><span class="trust-icon">↧</span><span>Export your way</span></div>
+  <div><span class="trust-icon">◎</span><span>Credits that never expire</span></div>
+</section>
+
+<section class="section section-features" id="features">
+  <div class="section-heading">
+    <div><span class="eyebrow"><span class="eyebrow-dot"></span> BUILT AROUND THE CONVERSATION</span><h2>More than words.<br><span class="text-teal">Every voice, in context.</span></h2></div>
+    <p>Stop replaying the same clip to figure out who said what. EchoID gives your audio the clarity it deserves.</p>
+  </div>
+  <div class="feature-grid">
+    <article class="feature-card feature-card-large"><div class="feature-icon icon-teal">◌</div><span class="card-kicker">01 / SPEAKER INTELLIGENCE</span><h3>Know who said it.</h3><p>Distinct speaker labels keep every thought attached to the right voice — even when the conversation gets lively.</p><div class="speaker-stack"><span><i class="speaker-dot dot-orange"></i> Speaker 01 <b>00:04</b></span><span><i class="speaker-dot dot-teal"></i> Speaker 02 <b>00:12</b></span><span><i class="speaker-dot dot-blue"></i> Speaker 03 <b>00:26</b></span></div></article>
+    <article class="feature-card"><div class="feature-icon icon-gold">ϟ</div><span class="card-kicker">02 / MADE FOR YOUR AUDIO</span><h3>Recording, meet clarity.</h3><p>Upload an audio file and let EchoID turn the conversation into a transcript with each speaker identified.</p><div class="mini-live"><span class="live-dot"></span> AUDIO READY <span class="mini-live-time">WAV · MP3 · M4A</span></div></article>
+    <article class="feature-card"><div class="feature-icon icon-lilac">↧</div><span class="card-kicker">03 / YOUR WORK, YOUR WAY</span><h3>Take the words with you.</h3><p>Export clean transcripts as PDF, plain text, or structured JSON — ready for your next step.</p><div class="export-chips"><span>PDF</span><span>TXT</span><span>JSON</span></div></article>
+  </div>
+</section>
+
+<section class="how-section" id="how-it-works">
+  <div class="how-inner">
+    <div class="how-intro"><span class="eyebrow eyebrow-light"><span class="eyebrow-dot"></span> SO SIMPLE, IT'S A NO-BRAINER</span><h2>From audio<br>to <span>aha.</span></h2><p>Three little steps. One big “now I get it.”</p><a class="text-link text-link-light" href="/studio">Try it for yourself <span>↗</span></a></div>
+    <div class="steps-list">
+      <article class="step-item"><span class="step-number">01</span><div><h3>Bring your audio</h3><p>Upload a recording in WAV, MP3, M4A, MP4, WebM, OGG, or FLAC format.</p></div><span class="step-symbol">↥</span></article>
+      <article class="step-item"><span class="step-number">02</span><div><h3>Let every voice be heard</h3><p>EchoID transcribes the conversation and separates the speakers for you.</p></div><span class="step-symbol">◌</span></article>
+      <article class="step-item"><span class="step-number">03</span><div><h3>Make it yours</h3><p>Review, save, and export your speaker-labeled transcript in a click.</p></div><span class="step-symbol">↗</span></article>
+    </div>
+  </div>
+</section>
+
+<section class="plans-preview" id="plans">
+  <div class="plans-preview-inner"><div><span class="eyebrow"><span class="eyebrow-dot"></span> NO SUBSCRIPTIONS. NO SURPRISES.</span><h2>Credits on your terms.</h2><p>Top up when you need to. Your credits stay yours.</p></div><a class="button button-dark" href="/billing">Explore credit packs <span>↗</span></a></div>
+</section>
+<section class="final-cta"><div class="final-cta-orbit"></div><div class="final-cta-content"><span class="eyebrow eyebrow-light">THE NEXT CONVERSATION STARTS HERE</span><h2>Ready to hear<br><span>the whole story?</span></h2><a class="button button-primary button-large" href="/studio">Start with a free demo <span>↗</span></a></div></section>
+{% endblock %}

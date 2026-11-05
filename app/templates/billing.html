@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Credits & billing — EchoID{% endblock %}
+{% block body_class %}app-body{% endblock %}
+{% block content %}
+<section class="app-page"><div class="app-container">
+  <div class="page-heading"><div><span class="eyebrow"><span class="eyebrow-dot"></span> SIMPLE, FLEXIBLE, YOURS</span><h1>Credits & billing<span class="heading-period">.</span></h1><p>No monthly plans. Just credits when you need them.</p></div><a href="/dashboard" class="quiet-link">← Back to dashboard</a></div>
+  <div class="billing-summary"><div class="balance-orb">✳</div><div><span class="eyebrow">YOUR CREDIT BALANCE</span><b data-credit-balance>— <small>credits</small></b><span data-billing-email></span></div><a class="button button-outline-dark" href="/studio">Use credits <span>↗</span></a></div>
+  <div class="billing-section-heading"><div><span class="eyebrow">ONE-TIME TOP UPS</span><h2>Pick your credit pack.</h2></div><span class="billing-currency">Prices in Kenyan Shillings · KES</span></div>
+  <div class="package-grid" data-package-grid><div class="loading-state"><span class="spinner"></span> Loading credit packs…</div></div>
+  <div class="payment-methods"><span class="eyebrow">PAY YOUR WAY</span><div class="payment-method-grid"><div><span class="payment-method-icon">M</span><b>M-Pesa STK Push</b><small>Approve on your phone</small></div><div><span class="payment-method-icon">▦</span><b>Scan to pay</b><small>M-Pesa QR code</small></div><div><span class="payment-method-icon">▤</span><b>Paybill or till</b><small>Pay at your own pace</small></div><div><span class="payment-method-icon">▰</span><b>Card</b><small>Secure checkout</small></div></div></div>
+  <section class="content-panel payment-history"><div class="panel-heading"><div><span class="eyebrow">THE PAPER TRAIL</span><h2>Payment history</h2></div></div><div data-payment-history><div class="loading-state"><span class="spinner"></span> Loading your payments…</div></div></section>
+  <p class="billing-footnote">Credits don’t expire. Each real transcription uses one credit. Demo runs are always free.</p>
+</div></section>
+<dialog class="payment-dialog" data-payment-dialog><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div class="payment-dialog-content" data-payment-dialog-content></div></dialog>
+{% endblock %}

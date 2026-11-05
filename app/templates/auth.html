@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ "Log in" if mode == "login" else "Create account" }} — EchoID{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+{% block content %}
+<section class="auth-page">
+  <div class="auth-side">
+    <a class="brand brand-light auth-brand" href="/"><span class="brand-mark">e</span> EchoID</a>
+    <div class="auth-side-content"><span class="eyebrow eyebrow-light"><span class="eyebrow-dot"></span> EVERY VOICE, IN CONTEXT</span><h1>Good conversations<br>deserve to be <span>heard.</span></h1><p>Bring your audio. We’ll make sure every voice has a place in the conversation.</p><div class="auth-quote"><span>“</span><div><p>It’s like having a second set of ears in every meeting.</p><b>THE ECHOID PROMISE</b></div></div></div>
+    <span class="auth-side-foot">ECHOID · HEAR WHO SPOKE</span>
+  </div>
+  <div class="auth-panel">
+    <div class="auth-form-wrap">
+      <a class="back-home" href="/">← <span>Back to home</span></a>
+      <span class="eyebrow"><span class="eyebrow-dot"></span> {{ "WELCOME BACK" if mode == "login" else "YOUR NEXT CHAPTER" }}</span>
+      <h2>{{ "Good to hear you again." if mode == "login" else "Let’s get you started." }}</h2>
+      <p class="auth-subtitle">{{ "Log in to pick up where you left off." if mode == "login" else "Create an account to save and export your transcripts." }}</p>
+      <div class="auth-message" role="status" hidden></div>
+      <form class="auth-form" data-auth-form data-mode="{{ mode }}">
+        {% if mode == "register" %}<label for="display-name">Your name</label><input id="display-name" name="display_name" type="text" autocomplete="name" placeholder="How should we call you?" minlength="1" maxlength="120" required>{% endif %}
+        <label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <div class="password-label"><label for="password">Password</label>{% if mode == "login" %}<a href="#" data-forgot-password>Forgot password?</a>{% endif %}</div>
+        <div class="password-input"><input id="password" name="password" type="password" autocomplete="{{ 'current-password' if mode == 'login' else 'new-password' }}" placeholder="{{ 'Your password' if mode == 'login' else 'At least 10 characters' }}" minlength="{{ 1 if mode == 'login' else 10 }}" required><button type="button" class="password-toggle" aria-label="Show password">Show</button></div>
+        {% if mode == "register" %}<label class="check-row"><input type="checkbox" required><span>I agree to the <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a>.</span></label>{% endif %}
+        <button class="button button-primary auth-submit" type="submit">{{ "Log in to EchoID" if mode == "login" else "Create my account" }} <span>↗</span></button>
+      </form>
+      <div class="auth-divider"><span></span><b>OR CONTINUE WITH</b><span></span></div>
+      <button class="button google-button" type="button" data-google-signin><span class="google-g">G</span> Google</button>
+      <p class="auth-switch">{{ "New to EchoID?" if mode == "login" else "Already have an account?" }} <a href="{{ '/register' if mode == 'login' else '/login' }}">{{ "Create an account" if mode == "login" else "Log in" }}</a></p>
+      <p class="auth-demo-note">Just looking around? <a href="/studio">Try the free demo without an account →</a></p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="/static/js/auth.js"></script>
+{% endblock %}

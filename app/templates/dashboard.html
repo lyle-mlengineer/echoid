@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — EchoID{% endblock %}
+{% block body_class %}app-body{% endblock %}
+{% block content %}
+<section class="app-page">
+  <div class="app-container">
+    <div class="page-heading dashboard-heading"><div><span class="eyebrow"><span class="eyebrow-dot"></span> YOUR ECHOID SPACE</span><h1>Welcome back<span class="heading-period">.</span></h1><p>Here’s the latest on your conversations.</p></div><a href="/studio" class="button button-primary"><span>＋</span> New transcription</a></div>
+    <div class="dashboard-stats">
+      <article class="stat-card stat-credit"><div class="stat-top"><span class="stat-icon">✳</span><span class="stat-label">AVAILABLE CREDITS</span></div><b data-credit-balance>—</b><span class="stat-foot">Ready when you are <a href="/billing">Top up ↗</a></span><div class="stat-decoration"></div></article>
+      <article class="stat-card"><div class="stat-top"><span class="stat-icon stat-icon-soft">◉</span><span class="stat-label">TRANSCRIPTS</span></div><b data-generation-count>—</b><span class="stat-foot">Conversations saved</span><span class="stat-spark">↗</span></article>
+      <article class="stat-card"><div class="stat-top"><span class="stat-icon stat-icon-soft">◷</span><span class="stat-label">LATEST ACTIVITY</span></div><b class="stat-date" data-last-activity>—</b><span class="stat-foot">Your most recent session</span><span class="stat-spark">◷</span></article>
+    </div>
+    <div class="dashboard-content-grid">
+      <section class="content-panel recent-panel"><div class="panel-heading"><div><span class="eyebrow">YOUR RECENT WORK</span><h2>Latest transcripts</h2></div><a class="text-link" href="/gallery">View all <span>→</span></a></div><div class="generation-list" data-generation-list><div class="loading-state"><span class="spinner"></span> Finding your transcripts…</div></div></section>
+      <aside class="content-panel quick-panel"><span class="eyebrow">QUICK START</span><h2>What are we listening to?</h2><p>Drop in a recording and let EchoID take it from here.</p><a href="/studio" class="quick-upload"><span class="quick-upload-icon">↥</span><span><b>Start a new transcript</b><small>Audio, meeting, interview…</small></span><span class="quick-arrow">↗</span></a><div class="quick-tip"><span>✦</span><p><b>Good to know</b><br>One free demo to get a feel for EchoID. No account needed.</p></div><a class="manage-link" href="/billing">Manage credits and payments <span>→</span></a></aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

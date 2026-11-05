@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Your transcripts — EchoID{% endblock %}
+{% block body_class %}app-body{% endblock %}
+{% block content %}
+<section class="app-page"><div class="app-container">
+  <div class="page-heading"><div><span class="eyebrow"><span class="eyebrow-dot"></span> YOUR CONVERSATION ARCHIVE</span><h1>The gallery<span class="heading-period">.</span></h1><p>Every conversation you’ve brought to EchoID, all in one place.</p></div><a href="/studio" class="button button-primary">＋ New transcription</a></div>
+  <div class="gallery-toolbar"><div class="gallery-count"><b data-gallery-count>—</b> transcripts</div><label class="search-box"><span>⌕</span><input type="search" placeholder="Search by filename…" data-gallery-search></label></div>
+  <div class="gallery-grid" data-gallery-grid><div class="loading-state"><span class="spinner"></span> Gathering your conversations…</div></div>
+</div></section>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Studio — EchoID{% endblock %}
+{% block body_class %}app-body{% endblock %}
+{% block content %}
+<section class="app-page studio-page">
+  <div class="app-container studio-container">
+    <div class="page-heading studio-heading"><div><span class="eyebrow"><span class="eyebrow-dot"></span> ECHOID STUDIO</span><h1>Let’s hear what happened<span class="heading-period">.</span></h1><p>Give us a recording. We’ll give every voice its own place.</p></div><a href="/gallery" class="quiet-link">Your transcripts <span>↗</span></a></div>
+    <div class="studio-layout">
+      <section class="content-panel upload-panel">
+        <div class="studio-tabs"><button type="button" class="studio-tab is-selected" data-studio-tab="upload"><span>↥</span> Upload audio</button><button type="button" class="studio-tab" data-studio-tab="sample"><span>◉</span> Try a sample</button></div>
+        <div class="upload-area" data-upload-area>
+          <input type="file" id="audio-file" accept=".wav,.mp3,.m4a,.mp4,.webm,.ogg,.flac,audio/*" hidden>
+          <div class="upload-orbit"><span>↥</span></div><h2>Drop your audio right here</h2><p>or <button type="button" data-choose-file>browse files</button> from your device</p>
+          <span class="upload-format">WAV · MP3 · M4A · MP4 · WEBM · OGG · FLAC</span><span class="upload-limit">Maximum file size: 25 MB</span>
+        </div>
+        <div class="selected-file" data-selected-file hidden><span class="file-icon">♫</span><div><b data-file-name></b><small data-file-size></small></div><button type="button" data-remove-file aria-label="Remove selected file">×</button></div>
+        <div class="upload-actions"><span class="privacy-note"><span>◈</span> Your recordings stay yours.</span><button type="button" class="button button-primary" data-transcribe disabled>Transcribe audio <span>↗</span></button></div>
+        <div class="studio-status" role="status" data-studio-status hidden></div>
+      </section>
+      <aside class="studio-aside">
+        <div class="content-panel aside-card"><span class="eyebrow">THE ECHOID DIFFERENCE</span><h3>Not just what was said.<br><span>Who said it.</span></h3><div class="aside-feature"><span>◌</span><div><b>Speaker labels</b><small>Every voice gets a name.</small></div></div><div class="aside-feature"><span>⌁</span><div><b>Timestamped</b><small>Jump back to the moment.</small></div></div><div class="aside-feature"><span>↧</span><div><b>Ready to export</b><small>JSON, text, or PDF.</small></div></div></div>
+        <div class="demo-callout"><span class="demo-spark">✳</span><div><b>Just exploring?</b><p>Try a demo run. No account or credits required.</p><button type="button" data-use-sample>Use a sample audio <span>→</span></button></div></div>
+      </aside>
+    </div>
+    <section class="content-panel transcript-panel" data-transcript-panel hidden><div class="panel-heading"><div><span class="eyebrow">YOUR CONVERSATION, DECODED</span><h2 data-result-title>Transcript</h2></div><div class="export-actions"><button type="button" data-export="txt">TXT <span>↧</span></button><button type="button" data-export="json">JSON <span>↧</span></button><button type="button" data-export="pdf">PDF <span>↧</span></button></div></div><div class="demo-banner" data-demo-banner hidden>DEMO TRANSCRIPT — Connect a transcription provider to analyze real audio.</div><div class="transcript-results" data-transcript-results></div></section>
+  </div>
+</section>
+{% endblock %}

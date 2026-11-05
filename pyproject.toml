@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "echoid-backend"
+version = "0.1.0"
+description = "EchoID audio speaker identification API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "email-validator>=2.2,<3",
+    "google-auth[requests]>=2.35,<3",
+    "jinja2>=3.1,<4",
+    "httpx>=0.27,<1",
+    "pydantic-settings>=2.6,<3",
+    "PyJWT>=2.9,<3",
+    "python-multipart>=0.0.12,<1",
+    "reportlab>=4.2,<5",
+    "sqlalchemy>=2.0,<3",
+    "uvicorn>=0.32,<1",
+    "psycopg[binary]>=3.2,<4",
+]
+
+[project.optional-dependencies]
+dev = ["httpx>=0.27,<1", "pytest>=8.3,<9"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
