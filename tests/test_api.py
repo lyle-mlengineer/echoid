@@ -158,6 +158,84 @@ def test_guest_cannot_download_and_bad_audio_is_rejected(tmp_path):
         assert client.get("/api/v1/billing/packages").status_code == 200
 
 
+def test_speaker_directory_crud_search_and_image_validation(tmp_path):
+    with make_client(tmp_path) as client:
+        registration = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "speakers@example.com",
+                "display_name": "Speaker Owner",
+                "password": "safe-speaker-password",
+            },
+        )
+        headers = {"Authorization": f"Bearer {registration.json()['access_token']}"}
+        image_data = "data:image/png;base64,iVBORw0KGgo="
+        created = client.post(
+            "/api/v1/speakers",
+            headers=headers,
+            json={
+                "name": "  Jordan  ",
+                "description": "  Project lead  ",
+                "image_data": image_data,
+            },
+        )
+        assert created.status_code == 201
+        profile = created.json()
+        assert profile["name"] == "Jordan"
+        assert profile["description"] == "Project lead"
+        assert profile["image_data"] == image_data
+        assert client.get("/api/v1/speakers?search=lead", headers=headers).json()[0]["id"] == profile["id"]
+        assert client.get("/api/v1/speakers?search=missing", headers=headers).json() == []
+        assert client.get("/api/v1/speakers").status_code == 401
+        other_account = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "other-speakers@example.com",
+                "display_name": "Other Owner",
+                "password": "other-safe-password",
+            },
+        )
+        other_headers = {"Authorization": f"Bearer {other_account.json()['access_token']}"}
+        assert client.get("/api/v1/speakers", headers=other_headers).json() == []
+        assert client.patch(
+            f"/api/v1/speakers/{profile['id']}",
+            headers=other_headers,
+            json={"name": "Stolen profile", "description": "", "image_data": None},
+        ).status_code == 404
+        generation = client.post(
+            "/api/v1/generations",
+            headers=headers,
+            files={"audio": ("meeting.wav", b"sample audio", "audio/wav")},
+        ).json()
+        renamed = client.patch(
+            f"/api/v1/generations/{generation['id']}/speakers",
+            headers=headers,
+            json={
+                "speaker": "Speaker 1",
+                "name": "Ignored custom name",
+                "speaker_profile_id": profile["id"],
+            },
+        )
+        assert renamed.status_code == 200
+        assert [segment["speaker"] for segment in renamed.json()["segments"]].count("Jordan") == 2
+        assert client.post(
+            "/api/v1/speakers",
+            headers=headers,
+            json={"name": "Invalid image", "image_data": "data:image/png;base64,ZmFrZQ=="},
+        ).status_code == 422
+
+        updated = client.patch(
+            f"/api/v1/speakers/{profile['id']}",
+            headers=headers,
+            json={"name": "Jordan Lee", "description": "Updated details", "image_data": None},
+        )
+        assert updated.status_code == 200
+        assert updated.json()["name"] == "Jordan Lee"
+        assert updated.json()["image_data"] is None
+        assert client.delete(f"/api/v1/speakers/{profile['id']}", headers=headers).status_code == 204
+        assert client.get("/api/v1/speakers", headers=headers).json() == []
+
+
 def test_jinja_pages_and_responsive_assets_are_served(tmp_path):
     with make_client(tmp_path) as client:
         pages = {
@@ -180,6 +258,7 @@ def test_jinja_pages_and_responsive_assets_are_served(tmp_path):
         assert script.status_code == 200
         assert "data-transcribe" in client.get("/studio").text
         assert "data-speaker-dialog" in client.get("/studio").text
+        assert "data-speaker-editor" in client.get("/studio").text
 
 
 def test_mpesa_callback_credits_once_and_checks_amount(tmp_path):

@@ -97,7 +97,7 @@
     downloadBlob(blob, filename);
   }
 
-  function renderTranscript(container, segments, onSpeakerClick) {
+  function renderTranscript(container, segments, onSpeakerClick, speakerProfiles = []) {
     container.replaceChildren();
     const speakerColors = new Map();
     segments.forEach((segment) => {
@@ -110,7 +110,14 @@
       speaker.setAttribute("aria-label", `Rename speaker ${segment.speaker}`);
       speaker.addEventListener("click", () => onSpeakerClick(segment.speaker));
       const initials = segment.speaker.trim().charAt(0).toLocaleUpperCase() || "?";
-      const avatar = make("span", "speaker-avatar", initials);
+      const profile = speakerProfiles.find((item) => item.name.toLocaleLowerCase() === segment.speaker.toLocaleLowerCase());
+      const avatar = profile?.image_data
+        ? make("img", "speaker-avatar", undefined)
+        : make("span", "speaker-avatar", initials);
+      if (profile?.image_data) {
+        avatar.src = profile.image_data;
+        avatar.alt = "";
+      }
       avatar.setAttribute("aria-hidden", "true");
       speaker.append(avatar, make("span", "speaker-name", segment.speaker));
       row.append(
@@ -271,25 +278,145 @@
     let generationId = null;
     let currentSegments = [];
     let pendingSpeaker = null;
+    let speakerProfiles = [];
+    let selectedProfileId = null;
+    let editingProfileId = null;
+    let pendingProfileForRename = false;
+    let editorImageData = null;
     const speakerDialog = $("[data-speaker-dialog]");
     const speakerForm = $("[data-speaker-form]");
     const speakerInput = $("[data-speaker-name-input]");
     const speakerError = $("[data-speaker-error]");
     const saveSpeaker = $("[data-save-speaker]");
+    const speakerSelect = $("[data-speaker-profile-select]");
+    const speakerList = $("[data-speaker-list]");
+    const speakerSearch = $("[data-speaker-search]");
+    const speakerCount = $("[data-speaker-count]");
+    const editorDialog = $("[data-speaker-editor]");
+    const editorForm = $("[data-speaker-editor-form]");
+    const editorName = $("[data-speaker-editor-name]");
+    const editorDescription = $("[data-speaker-editor-description]");
+    const editorImageInput = $("[data-speaker-image-input]");
+    const editorImagePreview = $("[data-speaker-image-preview]");
+    const editorImageRemove = $("[data-remove-speaker-image]");
+    const editorError = $("[data-speaker-editor-error]");
+    const saveProfile = $("[data-save-speaker-profile]");
 
     const renderCurrentTranscript = () => renderTranscript(
       $("[data-transcript-results]"),
       currentSegments,
-      (speaker) => {
-        pendingSpeaker = speaker;
-        speakerInput.value = speaker;
-        speakerError.hidden = true;
-        speakerError.textContent = "";
-        speakerDialog.showModal();
-        speakerInput.focus();
-        speakerInput.select();
-      },
+      openSpeakerRename,
+      speakerProfiles,
     );
+    function renderSpeakerSelect(profileId = "") {
+      speakerSelect.replaceChildren(make("option", "", "Enter a name or choose a saved speaker"));
+      speakerProfiles.forEach((profile) => {
+        const option = make("option", "", profile.name);
+        option.value = profile.id;
+        speakerSelect.append(option);
+      });
+      speakerSelect.value = profileId;
+    }
+    function renderSpeakerDirectory() {
+      if (!speakerList) return;
+      const query = speakerSearch.value.trim().toLocaleLowerCase();
+      const visible = speakerProfiles.filter((profile) => (
+        `${profile.name} ${profile.description}`.toLocaleLowerCase().includes(query)
+      ));
+      speakerCount.textContent = `${visible.length} speaker${visible.length === 1 ? "" : "s"}`;
+      speakerList.replaceChildren();
+      if (!accessToken()) {
+        speakerList.append(make("div", "speaker-library-empty", "Sign in to save speakers to your voice directory."));
+        return;
+      }
+      if (!visible.length) {
+        speakerList.append(make("div", "speaker-library-empty", query ? "No speakers match your search." : "Your speaker directory is empty. Add a speaker to get started."));
+        return;
+      }
+      visible.forEach((profile) => {
+        const card = make("article", "speaker-profile-card");
+        const avatar = profile.image_data
+          ? make("img", "speaker-profile-avatar")
+          : make("span", "speaker-profile-avatar", profile.name.trim().charAt(0).toLocaleUpperCase() || "?");
+        if (profile.image_data) {
+          avatar.src = profile.image_data;
+          avatar.alt = "";
+        }
+        const details = make("div", "speaker-profile-details");
+        details.append(make("b", "", profile.name), make("p", "", profile.description || "No description yet."));
+        const actions = make("div", "speaker-profile-actions");
+        const edit = make("button", "icon-button", "✎");
+        edit.type = "button";
+        edit.title = `Edit ${profile.name}`;
+        edit.setAttribute("aria-label", `Edit ${profile.name}`);
+        edit.dataset.editSpeaker = profile.id;
+        const remove = make("button", "icon-button danger", "×");
+        remove.type = "button";
+        remove.title = `Delete ${profile.name}`;
+        remove.setAttribute("aria-label", `Delete ${profile.name}`);
+        remove.dataset.removeSpeaker = profile.id;
+        actions.append(edit, remove);
+        card.append(avatar, details, actions);
+        speakerList.append(card);
+      });
+    }
+    async function loadSpeakers() {
+      if (!accessToken()) {
+        renderSpeakerDirectory();
+        return;
+      }
+      try {
+        speakerProfiles = await api("/speakers");
+        renderSpeakerDirectory();
+        renderSpeakerSelect(selectedProfileId || "");
+        renderCurrentTranscript();
+      } catch (error) {
+        speakerList.replaceChildren(make("div", "speaker-library-empty is-error", error.message));
+      }
+    }
+    function openSpeakerRename(speaker) {
+      pendingSpeaker = speaker;
+      selectedProfileId = null;
+      speakerInput.value = speaker;
+      speakerError.hidden = true;
+      speakerError.textContent = "";
+      renderSpeakerSelect();
+      speakerDialog.showModal();
+      speakerInput.focus();
+      speakerInput.select();
+    }
+    function updateEditorImagePreview() {
+      editorImagePreview.replaceChildren();
+      if (editorImageData) {
+        const image = make("img", "", undefined);
+        image.src = editorImageData;
+        image.alt = "";
+        editorImagePreview.append(image);
+        editorImageRemove.hidden = false;
+      } else {
+        editorImagePreview.textContent = editorName.value.trim().charAt(0).toLocaleUpperCase() || "?";
+        editorImageRemove.hidden = true;
+      }
+    }
+    function openSpeakerEditor(profile = null, fromRename = false) {
+      if (!accessToken()) {
+        toast("Sign in to create and save speakers.", true);
+        return;
+      }
+      editingProfileId = profile?.id || null;
+      pendingProfileForRename = fromRename;
+      editorName.value = profile?.name || "";
+      editorDescription.value = profile?.description || "";
+      editorImageData = profile?.image_data || null;
+      editorImageInput.value = "";
+      editorError.hidden = true;
+      editorError.textContent = "";
+      $("[data-speaker-editor-title]").textContent = editingProfileId ? "Edit speaker" : "Add a speaker";
+      saveProfile.innerHTML = editingProfileId ? 'Save changes <span>↗</span>' : 'Save speaker <span>↗</span>';
+      updateEditorImagePreview();
+      editorDialog.showModal();
+      editorName.focus();
+    }
     const previewSample = () => showSamplePreview((segments) => {
       generationId = null;
       currentSegments = segments;
@@ -346,8 +473,118 @@
     const closeSpeakerDialog = () => speakerDialog.close();
     $("[data-close-speaker-dialog]")?.addEventListener("click", closeSpeakerDialog);
     $("[data-cancel-speaker-dialog]")?.addEventListener("click", closeSpeakerDialog);
+    $("[data-add-speaker]")?.addEventListener("click", () => openSpeakerEditor());
+    $("[data-close-speaker-editor]")?.addEventListener("click", () => editorDialog.close());
+    $("[data-cancel-speaker-editor]")?.addEventListener("click", () => editorDialog.close());
+    $("[data-create-speaker-from-rename]")?.addEventListener("click", () => {
+      if (!accessToken()) {
+        toast("Sign in to create and save speakers.", true);
+        return;
+      }
+      speakerDialog.close();
+      openSpeakerEditor(null, true);
+    });
+    speakerSearch?.addEventListener("input", renderSpeakerDirectory);
+    speakerSelect?.addEventListener("change", () => {
+      const profile = speakerProfiles.find((item) => item.id === speakerSelect.value);
+      selectedProfileId = profile?.id || null;
+      if (profile) speakerInput.value = profile.name;
+    });
+    speakerInput?.addEventListener("input", () => {
+      selectedProfileId = null;
+      speakerSelect.value = "";
+    });
+    editorName?.addEventListener("input", updateEditorImagePreview);
+    editorImageInput?.addEventListener("change", () => {
+      const file = editorImageInput.files?.[0];
+      if (!file) return;
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) {
+        editorError.textContent = "Choose a JPG, PNG, or WebP image smaller than 2 MB.";
+        editorError.hidden = false;
+        editorImageInput.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        editorImageData = typeof reader.result === "string" ? reader.result : null;
+        updateEditorImagePreview();
+      });
+      reader.addEventListener("error", () => {
+        editorError.textContent = "The selected image could not be read.";
+        editorError.hidden = false;
+      });
+      reader.readAsDataURL(file);
+    });
+    editorImageRemove?.addEventListener("click", () => {
+      editorImageData = null;
+      editorImageInput.value = "";
+      updateEditorImagePreview();
+    });
+    speakerList?.addEventListener("click", async (event) => {
+      const editButton = event.target.closest("[data-edit-speaker]");
+      if (editButton) {
+        const profile = speakerProfiles.find((item) => item.id === editButton.dataset.editSpeaker);
+        if (profile) openSpeakerEditor(profile);
+        return;
+      }
+      const removeButton = event.target.closest("[data-remove-speaker]");
+      if (!removeButton) return;
+      const profile = speakerProfiles.find((item) => item.id === removeButton.dataset.removeSpeaker);
+      if (!profile || !window.confirm(`Delete ${profile.name} from your saved speakers?`)) return;
+      try {
+        await api(`/speakers/${encodeURIComponent(profile.id)}`, { method: "DELETE" });
+        await loadSpeakers();
+        toast("Speaker deleted.");
+      } catch (error) {
+        toast(error.message, true);
+      }
+    });
+    editorForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = {
+        name: editorName.value.trim(),
+        description: editorDescription.value.trim(),
+        image_data: editorImageData,
+      };
+      saveProfile.disabled = true;
+      editorError.hidden = true;
+      try {
+        const savedProfile = await api(
+          editingProfileId ? `/speakers/${encodeURIComponent(editingProfileId)}` : "/speakers",
+          {
+            method: editingProfileId ? "PATCH" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        speakerProfiles = [
+          ...speakerProfiles.filter((profile) => profile.id !== savedProfile.id),
+          savedProfile,
+        ].sort((a, b) => a.name.localeCompare(b.name));
+        renderSpeakerDirectory();
+        renderSpeakerSelect();
+        renderCurrentTranscript();
+        editorDialog.close();
+        if (pendingProfileForRename) {
+          openSpeakerRename(pendingSpeaker);
+          selectedProfileId = savedProfile.id;
+          renderSpeakerSelect(selectedProfileId);
+          speakerInput.value = savedProfile.name;
+        } else {
+          toast(editingProfileId ? "Speaker updated." : "Speaker saved.");
+        }
+      } catch (error) {
+        editorError.textContent = error.message;
+        editorError.hidden = false;
+      } finally {
+        saveProfile.disabled = false;
+      }
+    });
     speakerDialog?.addEventListener("click", (event) => {
       if (event.target === speakerDialog) closeSpeakerDialog();
+    });
+    editorDialog?.addEventListener("click", (event) => {
+      if (event.target === editorDialog) editorDialog.close();
     });
     speakerForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -363,7 +600,11 @@
           const result = await api(`/generations/${encodeURIComponent(generationId)}/speakers`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ speaker: pendingSpeaker, name }),
+            body: JSON.stringify({
+              speaker: pendingSpeaker,
+              name,
+              speaker_profile_id: selectedProfileId,
+            }),
           });
           currentSegments = result.segments;
         } else {
@@ -380,6 +621,7 @@
         saveSpeaker.disabled = false;
       }
     });
+    loadSpeakers();
 
     async function runTranscription(file) {
       transcribe.disabled = true;

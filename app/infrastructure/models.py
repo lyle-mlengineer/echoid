@@ -34,6 +34,18 @@ class GuestSessionRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class SpeakerRecord(Base):
+    __tablename__ = "speakers"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_speaker_user_name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str] = mapped_column(Text, default="")
+    image_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class GenerationRecord(Base):
     __tablename__ = "generations"
     __table_args__ = (UniqueConstraint("guest_id", name="uq_generation_guest"),)

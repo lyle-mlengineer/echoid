@@ -28,6 +28,19 @@ class TranscriptionResult:
     provider: str
     demo_mode: bool
 
+def get_audio_from_bytes(audio_bytes: bytes, sr: int = 16000) -> tuple:
+    """
+    Load audio from bytes and return the audio data and sample rate.
+    """
+    # Use librosa to load the audio from bytes
+    audio_data, _ = sf.read(io.BytesIO(audio_bytes), dtype='float32')
+    
+    # Resample if necessary
+    if sr != 16000:
+        audio_data = librosa.resample(audio_data, orig_sr=_, target_sr=sr)
+    
+    return audio_data, sr
+
 
 class TranscriptionProvider(Protocol):
     demo_mode: bool

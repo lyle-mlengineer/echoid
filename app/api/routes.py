@@ -33,7 +33,10 @@ from app.api.schemas import (
     PaymentPackageResponse,
     PaymentResponse,
     RegisterRequest,
+    SpeakerCreateRequest,
+    SpeakerResponse,
     SpeakerRenameRequest,
+    SpeakerUpdateRequest,
     TokenResponse,
     UserResponse,
 )
@@ -46,6 +49,7 @@ from app.infrastructure.models import (
     GenerationRecord,
     GuestSessionRecord,
     PaymentRecord,
+    SpeakerRecord,
     UserRecord,
     utc_now,
 )
@@ -150,6 +154,23 @@ def _generation_response(record: GenerationRecord) -> GenerationResponse:
         credits_charged=record.credits_charged,
         created_at=record.created_at,
     )
+
+
+def _speaker_response(record: SpeakerRecord) -> SpeakerResponse:
+    return SpeakerResponse(
+        id=record.id,
+        name=record.name,
+        description=record.description,
+        image_data=record.image_data,
+        created_at=record.created_at,
+    )
+
+
+def _owned_speaker(db: Session, speaker_id: UUID, user: UserRecord) -> SpeakerRecord:
+    record = db.get(SpeakerRecord, str(speaker_id))
+    if record is None or record.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Speaker not found.")
+    return record
 
 
 def _owned_generation(
@@ -565,6 +586,77 @@ def get_generation(
     return _generation_response(_owned_generation(db, generation_id, principal))
 
 
+@router.get("/speakers", response_model=list[SpeakerResponse])
+def list_speakers(
+    search: str = Query(default="", max_length=120),
+    user: UserRecord = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> list[SpeakerResponse]:
+    query = select(SpeakerRecord).where(SpeakerRecord.user_id == user.id)
+    search = search.strip()
+    if search:
+        query = query.where(
+            SpeakerRecord.name.ilike(f"%{search}%")
+            | SpeakerRecord.description.ilike(f"%{search}%")
+        )
+    query = query.order_by(SpeakerRecord.name)
+    return [_speaker_response(record) for record in db.scalars(query).all()]
+
+
+@router.post("/speakers", response_model=SpeakerResponse, status_code=201)
+def create_speaker(
+    request: SpeakerCreateRequest,
+    user: UserRecord = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> SpeakerResponse:
+    record = SpeakerRecord(
+        user_id=user.id,
+        name=request.name,
+        description=request.description,
+        image_data=request.image_data,
+    )
+    db.add(record)
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="A speaker with this name already exists.") from error
+    db.refresh(record)
+    return _speaker_response(record)
+
+
+@router.patch("/speakers/{speaker_id}", response_model=SpeakerResponse)
+def update_speaker(
+    speaker_id: UUID,
+    request: SpeakerUpdateRequest,
+    user: UserRecord = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> SpeakerResponse:
+    record = _owned_speaker(db, speaker_id, user)
+    record.name = request.name
+    record.description = request.description
+    record.image_data = request.image_data
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="A speaker with this name already exists.") from error
+    db.refresh(record)
+    return _speaker_response(record)
+
+
+@router.delete("/speakers/{speaker_id}", status_code=204)
+def delete_speaker(
+    speaker_id: UUID,
+    user: UserRecord = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    record = _owned_speaker(db, speaker_id, user)
+    db.delete(record)
+    db.commit()
+    return Response(status_code=204)
+
+
 @router.patch("/generations/{generation_id}/speakers", response_model=GenerationResponse)
 def rename_generation_speaker(
     generation_id: UUID,
@@ -576,9 +668,15 @@ def rename_generation_speaker(
     segments = json.loads(record.transcript_json)
     if not any(item["speaker"] == request.speaker for item in segments):
         raise HTTPException(status_code=404, detail="Speaker not found in this transcript.")
+    name = request.name
+    if request.speaker_profile_id is not None:
+        user, _ = principal
+        if user is None:
+            raise HTTPException(status_code=401, detail="Sign in to use saved speakers.")
+        name = _owned_speaker(db, request.speaker_profile_id, user).name
     for item in segments:
         if item["speaker"] == request.speaker:
-            item["speaker"] = request.name
+            item["speaker"] = name
     record.transcript_json = json.dumps(segments)
     db.commit()
     db.refresh(record)

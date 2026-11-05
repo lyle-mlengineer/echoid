@@ -22,6 +22,17 @@
         <div class="demo-callout"><span class="demo-spark">✳</span><div><b>Just exploring?</b><p>Try a demo run. No account or credits required.</p><button type="button" data-use-sample>Use a sample audio <span>→</span></button></div></div>
       </aside>
     </div>
+    <section class="content-panel speaker-library" data-speaker-library>
+      <div class="speaker-library-heading">
+        <div><span class="eyebrow">YOUR VOICE DIRECTORY</span><h2>Saved speakers</h2><p>Keep names, descriptions, and portraits ready for your transcripts.</p></div>
+        <button class="button button-primary" type="button" data-add-speaker><span>＋</span> Add speaker</button>
+      </div>
+      <div class="speaker-library-tools">
+        <label class="search-box"><span>⌕</span><input type="search" placeholder="Search speakers…" aria-label="Search speakers" data-speaker-search></label>
+        <span class="speaker-library-count" data-speaker-count></span>
+      </div>
+      <div class="speaker-library-grid" data-speaker-list><div class="loading-state"><span class="spinner"></span> Loading speakers…</div></div>
+    </section>
     <section class="content-panel transcript-panel" data-transcript-panel hidden><div class="panel-heading"><div><span class="eyebrow">YOUR CONVERSATION, DECODED</span><h2 data-result-title>Transcript</h2></div><div class="export-actions"><button type="button" data-export="txt">TXT <span>↧</span></button><button type="button" data-export="json">JSON <span>↧</span></button><button type="button" data-export="pdf">PDF <span>↧</span></button></div></div><div class="demo-banner" data-demo-banner hidden>DEMO TRANSCRIPT — Connect a transcription provider to analyze real audio.</div><div class="transcript-results" data-transcript-results></div></section>
   </div>
 </section>
@@ -32,12 +43,40 @@
     <span class="eyebrow">MAKE IT PERSONAL</span>
     <h2 id="speaker-dialog-title">Name this speaker</h2>
     <p id="speaker-dialog-description">Your new name will update every turn spoken by this speaker.</p>
+    <label class="speaker-name-label" for="speaker-profile-select">Use a saved speaker</label>
+    <select id="speaker-profile-select" class="speaker-profile-select" data-speaker-profile-select>
+      <option value="">Enter a name or choose a saved speaker</option>
+    </select>
     <label class="speaker-name-label" for="speaker-name">Speaker name</label>
     <input id="speaker-name" name="name" type="text" maxlength="120" autocomplete="off" required data-speaker-name-input>
+    <button class="speaker-create-link" type="button" data-create-speaker-from-rename>＋ Create a new saved speaker</button>
     <span class="speaker-dialog-error" data-speaker-error role="alert" hidden></span>
     <div class="speaker-dialog-actions">
       <button class="button button-quiet" type="button" data-cancel-speaker-dialog>Cancel</button>
       <button class="button button-primary" type="submit" data-save-speaker>Save name <span>↗</span></button>
+    </div>
+  </form>
+</dialog>
+<dialog class="speaker-dialog" data-speaker-editor aria-labelledby="speaker-editor-title" aria-describedby="speaker-editor-description">
+  <form class="speaker-dialog-form" data-speaker-editor-form>
+    <button class="speaker-dialog-close" type="button" data-close-speaker-editor aria-label="Close dialog">×</button>
+    <span class="speaker-dialog-icon" aria-hidden="true">✦</span>
+    <span class="eyebrow">YOUR VOICE DIRECTORY</span>
+    <h2 id="speaker-editor-title" data-speaker-editor-title>Add a speaker</h2>
+    <p id="speaker-editor-description">Save a name and a few details to recognize this speaker in future transcripts.</p>
+    <div class="speaker-image-picker">
+      <div class="speaker-image-preview" data-speaker-image-preview aria-hidden="true">?</div>
+      <div><label class="button button-quiet speaker-image-button" for="speaker-image">Choose image</label><input id="speaker-image" type="file" accept="image/png,image/jpeg,image/webp" hidden data-speaker-image-input><small>JPG, PNG, or WebP · up to 2 MB</small></div>
+      <button class="speaker-image-remove" type="button" data-remove-speaker-image hidden>Remove image</button>
+    </div>
+    <label class="speaker-name-label" for="speaker-editor-name">Name</label>
+    <input id="speaker-editor-name" name="name" type="text" maxlength="120" autocomplete="off" required data-speaker-editor-name>
+    <label class="speaker-name-label" for="speaker-editor-description-input">Description</label>
+    <textarea id="speaker-editor-description-input" name="description" rows="3" maxlength="1000" data-speaker-editor-description></textarea>
+    <span class="speaker-dialog-error" data-speaker-editor-error role="alert" hidden></span>
+    <div class="speaker-dialog-actions">
+      <button class="button button-quiet" type="button" data-cancel-speaker-editor>Cancel</button>
+      <button class="button button-primary" type="submit" data-save-speaker-profile>Save speaker <span>↗</span></button>
     </div>
   </form>
 </dialog>

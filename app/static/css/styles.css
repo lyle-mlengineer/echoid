@@ -222,3 +222,44 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .segment-speaker { gap: 6px; font-size: 9px; }
   .segment-text { padding: 8px; font-size: 10px; }
 }
+.speaker-library { margin-top: 18px; padding: 22px; }
+.speaker-library-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.speaker-library-heading h2 { margin: 5px 0 3px; color: var(--teal-dark); font-family: "Nunito", sans-serif; font-size: 21px; }
+.speaker-library-heading p { margin: 0; color: #82958d; font-size: 10px; line-height: 1.6; }
+.speaker-library-heading > .button { flex: 0 0 auto; min-height: 38px; font-size: 10px; }
+.speaker-library-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 17px 0 12px; }
+.speaker-library-tools .search-box { width: min(320px, 100%); }
+.speaker-library-count { color: #92a39b; font-size: 9px; }
+.speaker-library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.speaker-profile-card { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 11px; border: 1px solid #e8efeb; border-radius: 11px; background: #fcfdfc; }
+.speaker-profile-avatar { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; overflow: hidden; border-radius: 13px; background: #e8f4ee; color: var(--teal); font-family: "Nunito", sans-serif; font-size: 15px; font-weight: 900; object-fit: cover; }
+.speaker-profile-details { min-width: 0; flex: 1; }
+.speaker-profile-details b { display: block; overflow: hidden; color: #365951; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.speaker-profile-details p { display: -webkit-box; overflow: hidden; margin: 4px 0 0; color: #899a93; font-size: 9px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.speaker-profile-actions { display: flex; gap: 4px; }
+.speaker-profile-actions .icon-button { min-width: 27px; height: 27px; font-size: 11px; }
+.speaker-library-empty { grid-column: 1 / -1; padding: 20px; border: 1px dashed #dce9e2; border-radius: 10px; color: #82958d; font-size: 10px; text-align: center; }
+.speaker-library-empty.is-error { color: #a5483e; }
+.speaker-profile-select, .speaker-dialog-form textarea { width: 100%; padding: 10px 12px; border: 1px solid #dce9e2; border-radius: 9px; outline: 0; background: #fbfdfb; color: #35584e; font: inherit; font-size: 11px; }
+.speaker-profile-select { min-height: 42px; margin-bottom: 13px; }
+.speaker-dialog-form textarea { min-height: 78px; resize: vertical; line-height: 1.6; }
+.speaker-profile-select:focus, .speaker-dialog-form textarea:focus { border-color: #68b7a3; box-shadow: 0 0 0 3px rgba(8, 135, 124, .1); }
+.speaker-create-link { align-self: flex-start; margin-top: 9px; padding: 0; border: 0; background: none; color: var(--teal); font-size: 10px; font-weight: 800; cursor: pointer; }
+.speaker-create-link:hover { color: #075e55; text-decoration: underline; text-underline-offset: 3px; }
+.speaker-image-picker { display: flex; align-items: center; gap: 12px; margin: 0 0 17px; }
+.speaker-image-preview { width: 54px; height: 54px; flex: 0 0 54px; display: grid; place-items: center; overflow: hidden; border: 1px solid #dce9e2; border-radius: 16px; background: #e9f6ef; color: var(--teal); font-family: "Nunito", sans-serif; font-size: 20px; font-weight: 900; }
+.speaker-image-preview img { width: 100%; height: 100%; object-fit: cover; }
+.speaker-image-picker > div:nth-child(2) { display: grid; justify-items: start; gap: 5px; }
+.speaker-image-button { min-height: 31px !important; padding: 0 10px !important; font-size: 9px !important; cursor: pointer; }
+.speaker-image-picker small { color: #99aaa2; font-size: 8px; }
+.speaker-image-remove { margin-left: auto; padding: 4px; border: 0; background: none; color: #a5483e; font-size: 9px; cursor: pointer; }
+@media (max-width: 680px) {
+  .speaker-library { padding: 16px; }
+  .speaker-library-heading { align-items: flex-start; }
+  .speaker-library-heading h2 { font-size: 18px; }
+  .speaker-library-heading p { max-width: 240px; }
+  .speaker-library-heading > .button { min-height: 34px; padding: 0 9px; font-size: 9px; }
+  .speaker-library-grid { grid-template-columns: 1fr; }
+  .speaker-profile-card { padding: 9px; }
+  .speaker-dialog-form { padding: 25px 20px; }
+}
