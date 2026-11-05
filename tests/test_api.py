@@ -52,10 +52,20 @@ def test_registration_login_and_generation_exports(tmp_path):
             f"/api/v1/generations/{result['id']}/export?format=txt",
             headers=headers,
         ).text.startswith("Speaker 1:")
-        assert client.get(
+        branded = client.get(
             f"/api/v1/generations/{result['id']}/export?format=pdf",
             headers=headers,
-        ).headers["content-type"] == "application/pdf"
+        )
+        assert branded.headers["content-type"] == "application/pdf"
+        assert branded.content.startswith(b"%PDF")
+        assert b"EchoID transcript - meeting.wav" in branded.content
+        assert b"Made by Lyle Okoth" in branded.content
+        filtered_pdf = client.get(
+            f"/api/v1/generations/{result['id']}/export?format=pdf&speakers=Speaker+2",
+            headers=headers,
+        )
+        assert filtered_pdf.content.startswith(b"%PDF")
+        assert len(filtered_pdf.content) < len(branded.content)
 
         renamed = client.patch(
             f"/api/v1/generations/{result['id']}/speakers",

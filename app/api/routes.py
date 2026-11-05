@@ -1,9 +1,8 @@
 import asyncio
 import hmac
-import io
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Annotated
@@ -17,8 +16,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
 from google.auth.exceptions import GoogleAuthError
 from google.oauth2 import id_token as google_id_token
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -55,6 +52,7 @@ from app.infrastructure.models import (
     utc_now,
 )
 from app.infrastructure.payments import MpesaClient, PaymentProviderError, verify_stripe_signature
+from app.infrastructure.transcript_pdf import clock, render_transcript_pdf, speaker_tones
 
 router = APIRouter()
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -199,6 +197,28 @@ def _visible_segments(
         if (not wanted or item["speaker"].strip().casefold() in wanted)
         and all(word in item["text"].casefold() for word in words)
     ]
+
+
+def _transcript_meta(record: GenerationRecord, segments: list[dict]) -> str:
+    parts = []
+    if record.created_at:
+        parts.append(f"{record.created_at.day} {record.created_at:%b %Y}")
+    if record.duration_seconds is not None:
+        parts.append(f"{clock(record.duration_seconds)} min")
+    parts.append(f"{len(segments)} speaker turn{'s' if len(segments) != 1 else ''}")
+    if record.provider:
+        parts.append(record.provider)
+    return " · ".join(parts)
+
+
+def _filter_note(speakers: list[str], search: str) -> str:
+    names = [name.strip() for name in speakers if name and name.strip()]
+    parts = []
+    if names:
+        parts.append("Showing " + ", ".join(names))
+    if search and search.strip():
+        parts.append(f"matching “{search.strip()}”")
+    return f"Filtered — {' · '.join(parts)}" if parts else ""
 
 
 def _payment_package(package_id: str) -> dict[str, int]:
@@ -773,7 +793,8 @@ def export_generation(
     if user is None:
         raise HTTPException(status_code=401, detail="Create an account to download generation results.")
     record = _owned_generation(db, generation_id, principal)
-    segments = _visible_segments(json.loads(record.transcript_json), speakers, search)
+    all_segments = json.loads(record.transcript_json)
+    segments = _visible_segments(all_segments, speakers, search)
     if format == "json":
         return Response(
             content=json.dumps(
@@ -794,20 +815,18 @@ def export_generation(
             "\n".join(lines),
             headers={"Content-Disposition": f'attachment; filename="echoid-{record.id}.txt"'},
         )
-    output = io.BytesIO()
-    pdf = canvas.Canvas(output, pagesize=letter)
-    pdf.setTitle(f"EchoID transcript - {record.filename}")
-    pdf.drawString(50, 750, f"EchoID transcript: {record.filename}")
-    y = 715
-    for line in lines:
-        if y < 50:
-            pdf.showPage()
-            y = 750
-        pdf.drawString(50, y, line[:120])
-        y -= 18
-    pdf.save()
+    exported = datetime.now(timezone.utc)
+    content = render_transcript_pdf(
+        segments,
+        speaker_tones(all_segments),
+        title=record.filename,
+        meta=_transcript_meta(record, segments),
+        filter_note=_filter_note(speakers, search),
+        reference=str(record.id),
+        exported_on=f"{exported.day} {exported:%b %Y}",
+    )
     return Response(
-        content=output.getvalue(),
+        content=content,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="echoid-{record.id}.pdf"'},
     )
