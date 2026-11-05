@@ -199,3 +199,26 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .billing-summary { gap: 10px; padding: 14px; }.balance-orb { width: 38px; height: 38px; flex: 0 0 38px; }.billing-summary > div:nth-child(2) > b { font-size: 19px; }.billing-summary > .button { padding: 0 12px; }.billing-section-heading { align-items: start; flex-direction: column; gap: 8px; }.billing-section-heading h2 { font-size: 21px; }.package-grid { grid-template-columns: 1fr; }.package-card { padding: 18px; }.package-note { min-height: 0; }.package-actions { grid-template-columns: 1fr 1fr; }.payment-method-grid { grid-template-columns: 1fr 1fr; row-gap: 15px; }.payment-methods,.payment-history { padding: 16px; }.payment-method-grid b { font-size: 8px; }.payment-dialog-content { padding: 5px 20px 22px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+.transcript-results { display: grid; gap: 9px; }
+.transcript-segment { grid-template-columns: 58px minmax(100px, 150px) minmax(0, 1fr); align-items: start; gap: 12px; margin: 0; padding: 14px; border: 1px solid #e8efeb; border-left: 3px solid var(--speaker-accent); border-radius: 12px; background: #fff; box-shadow: 0 3px 12px rgba(15, 77, 64, .035); }
+.transcript-segment:last-child { border-bottom: 1px solid #e8efeb; }
+.segment-time { padding-top: 7px; color: #84978f; font-size: 10px; }
+.segment-speaker { display: inline-flex; min-width: 0; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--speaker-accent); font: inherit; font-size: 10px; font-weight: 800; text-align: left; cursor: pointer; }
+.segment-speaker:hover .speaker-name { text-decoration: underline; text-underline-offset: 3px; }
+.segment-speaker:focus-visible { outline: 2px solid var(--speaker-accent); outline-offset: 3px; border-radius: 5px; }
+.speaker-avatar { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 10px; background: var(--speaker-accent); color: #fff; font-family: "Nunito", sans-serif; font-size: 12px; font-weight: 900; box-shadow: 0 3px 8px color-mix(in srgb, var(--speaker-accent) 24%, transparent); }
+.speaker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.segment-text { min-width: 0; margin: 0; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--speaker-accent) 13%, white); border-radius: 4px 12px 12px 12px; background: var(--speaker-tint); color: #38564d; font-size: 12px; line-height: 1.7; }
+.speaker-tone-1 { --speaker-accent: #168875; --speaker-tint: #f0f8f4; }
+.speaker-tone-2 { --speaker-accent: #8a63b6; --speaker-tint: #f7f2fb; }
+.speaker-tone-3 { --speaker-accent: #c27a2c; --speaker-tint: #fff7ec; }
+.speaker-tone-4 { --speaker-accent: #4a78b8; --speaker-tint: #f0f5fc; }
+.speaker-tone-5 { --speaker-accent: #be5f72; --speaker-tint: #fff2f4; }
+.speaker-tone-6 { --speaker-accent: #63843e; --speaker-tint: #f5f8ee; }
+@media (max-width: 680px) {
+  .transcript-segment { grid-template-columns: 44px minmax(90px, 120px) minmax(0, 1fr); gap: 8px; padding: 11px 9px; }
+  .speaker-avatar { width: 27px; height: 27px; flex-basis: 27px; }
+  .segment-speaker { gap: 6px; font-size: 9px; }
+  .segment-text { padding: 8px; font-size: 10px; }
+}

@@ -4,6 +4,7 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForAudioFrameClassification, AutoProcessor, pipeline
 import librosa
+import soundfile as sf
 
 
 @dataclass(frozen=True)

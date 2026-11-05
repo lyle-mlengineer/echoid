@@ -99,13 +99,20 @@
 
   function renderTranscript(container, segments, onSpeakerClick) {
     container.replaceChildren();
+    const speakerColors = new Map();
     segments.forEach((segment) => {
       const row = make("article", "transcript-segment");
-      const speaker = make("button", "segment-speaker", segment.speaker);
+      if (!speakerColors.has(segment.speaker)) speakerColors.set(segment.speaker, speakerColors.size % 6 + 1);
+      row.classList.add(`speaker-tone-${speakerColors.get(segment.speaker)}`);
+      const speaker = make("button", "segment-speaker");
       speaker.type = "button";
       speaker.title = `Rename ${segment.speaker}`;
       speaker.setAttribute("aria-label", `Rename speaker ${segment.speaker}`);
       speaker.addEventListener("click", () => onSpeakerClick(segment.speaker));
+      const initials = segment.speaker.trim().charAt(0).toLocaleUpperCase() || "?";
+      const avatar = make("span", "speaker-avatar", initials);
+      avatar.setAttribute("aria-hidden", "true");
+      speaker.append(avatar, make("span", "speaker-name", segment.speaker));
       row.append(
         make("span", "segment-time", formatDuration(segment.start_seconds).replace(" min", "")),
         speaker,
