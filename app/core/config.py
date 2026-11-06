@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     whisper_model_id: str | None = None
     nematron_model_id: str | None = None
 
+    pynnote_api_key: str | None = None
+    pynnote_api_url: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
