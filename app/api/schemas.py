@@ -147,6 +147,7 @@ class GenerationResponse(BaseModel):
     segments: list[TranscriptSegmentResponse]
     duration_seconds: float | None
     provider: str
+    language: str | None = None
     demo_mode: bool
     credits_charged: int
     created_at: datetime

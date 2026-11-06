@@ -9,6 +9,7 @@ from transformers import AutoModelForAudioFrameClassification, AutoProcessor, pi
 
 from app.core.config import Settings
 from app.domain.entities import TranscriptSegment
+from app.domain.languages import WHISPER_NAMES
 
 from app.infrastructure.provider_utils import (
     Segment, merge_adjacent_speaker_segments, save_audio_bytes_to_file, get_audio_segments, transcribe_segments
@@ -26,13 +27,17 @@ class TranscriptionResult:
 class TranscriptionProvider(Protocol):
     demo_mode: bool
 
-    async def transcribe(self, filename: str, content: bytes) -> TranscriptionResult: ...
+    async def transcribe(
+        self, filename: str, content: bytes, language: str | None = None
+    ) -> TranscriptionResult: ...
 
 
 class DemoTranscriptionProvider:
     demo_mode = True
 
-    async def transcribe(self, filename: str, content: bytes) -> TranscriptionResult:
+    async def transcribe(
+        self, filename: str, content: bytes, language: str | None = None
+    ) -> TranscriptionResult:
         return TranscriptionResult(
             segments=[
                 TranscriptSegment(
@@ -73,13 +78,17 @@ class HttpTranscriptionProvider:
         self.api_url = api_url
         self.api_key = api_key
 
-    async def transcribe(self, filename: str, content: bytes) -> TranscriptionResult:
+    async def transcribe(
+        self, filename: str, content: bytes, language: str | None = None
+    ) -> TranscriptionResult:
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        data = {"language": language} if language else {}
         async with httpx.AsyncClient(timeout=300) as client:
             response = await client.post(
                 self.api_url,
                 headers=headers,
                 files={"file": (filename, content, "application/octet-stream")},
+                data=data,
             )
             response.raise_for_status()
         payload = response.json()
@@ -111,14 +120,22 @@ class NematronWhisperProviderLocal(TranscriptionProvider):
         self.transcription_pipeline = pipeline("automatic-speech-recognition", model=whisper_model_id)
         self.sampling_rate = self.diarization_processor.feature_extractor.sampling_rate
 
-    async def transcribe(self, filename: str, content: bytes) -> TranscriptionResult:
+    async def transcribe(
+        self, filename: str, content: bytes, language: str | None = None
+    ) -> TranscriptionResult:
         parent_dir = Path(__file__).parent.parent
         audio_dir = parent_dir / "audio" / "raw"
         audio_path = audio_dir / filename
         await save_audio_bytes_to_file(content, audio_path)
         audio, _ = librosa.load(str(audio_path), sr=self.sampling_rate)
         audio_segments = await get_audio_segments(audio, self.diarization_model, self.diarization_processor)
-        segments = await transcribe_segments(audio_segments, audio, self.sampling_rate, self.transcription_pipeline)
+        segments = await transcribe_segments(
+            audio_segments,
+            audio,
+            self.sampling_rate,
+            self.transcription_pipeline,
+            language=WHISPER_NAMES.get(language or ""),
+        )
         segments = await merge_adjacent_speaker_segments(segments)
         
         return TranscriptionResult(

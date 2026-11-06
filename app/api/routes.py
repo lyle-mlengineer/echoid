@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import jwt
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
@@ -42,6 +42,7 @@ from app.core.config import Settings
 from app.core.security import create_token, decode_token, hash_password, verify_password
 from app.domain.entities import Generation, Payment
 from app.domain.events import EventBus
+from app.domain.languages import normalize_language
 from app.infrastructure.models import (
     CreditLedgerRecord,
     GenerationRecord,
@@ -149,6 +150,7 @@ def _generation_response(record: GenerationRecord) -> GenerationResponse:
         segments=json.loads(record.transcript_json),
         duration_seconds=record.duration_seconds,
         provider=record.provider,
+        language=record.language,
         demo_mode=record.demo_mode,
         credits_charged=record.credits_charged,
         created_at=record.created_at,
@@ -206,6 +208,8 @@ def _transcript_meta(record: GenerationRecord, segments: list[dict]) -> str:
     if record.duration_seconds is not None:
         parts.append(f"{clock(record.duration_seconds)} min")
     parts.append(f"{len(segments)} speaker turn{'s' if len(segments) != 1 else ''}")
+    if record.language:
+        parts.append(record.language)
     if record.provider:
         parts.append(record.provider)
     return " · ".join(parts)
@@ -477,6 +481,7 @@ def get_me(user: UserRecord = Depends(require_user)) -> UserResponse:
 async def create_generation(
     request: Request,
     audio: UploadFile = File(...),
+    language: str | None = Form(None),
     principal=Depends(get_principal),
     db: Session = Depends(get_db),
 ) -> GenerationResponse:
@@ -491,6 +496,10 @@ async def create_generation(
         raise HTTPException(status_code=422, detail="The uploaded audio file is empty.")
     if len(content) > settings.max_upload_mb * 1024 * 1024:
         raise HTTPException(status_code=413, detail=f"Audio files may not exceed {settings.max_upload_mb} MB.")
+    requested_language = (language or "").strip()
+    code = normalize_language(requested_language)
+    if requested_language and requested_language.lower() != "auto" and code is None:
+        raise HTTPException(status_code=422, detail="Choose a supported language or leave auto-detect on.")
     provider = request.app.state.transcription_provider
     credits = (
         settings.credit_cost_per_generation
@@ -507,7 +516,7 @@ async def create_generation(
         )
     try:
         filename: str = f"{uuid4()}{suffix}"
-        result = await provider.transcribe(filename, content)
+        result = await provider.transcribe(filename, content, language=code)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as error:
         raise HTTPException(status_code=502, detail=f"Transcription failed: {error}") from error
     generation_id = uuid4()
@@ -548,6 +557,7 @@ async def create_generation(
         ),
         duration_seconds=domain_generation.duration_seconds,
         provider=domain_generation.provider,
+        language=code,
         demo_mode=domain_generation.demo_mode,
         credits_charged=credits,
     )
@@ -803,6 +813,7 @@ def export_generation(
                     "id": record.id,
                     "filename": record.filename,
                     "provider": record.provider,
+                    "language": record.language,
                     "segments": segments,
                 },
                 indent=2,

@@ -4,6 +4,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.domain.languages import LANGUAGES
+
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -50,7 +52,7 @@ def register_page(request: Request):
 
 @router.get("/studio", response_class=HTMLResponse, include_in_schema=False)
 def studio(request: Request):
-    return _render(request, "studio", active_nav="studio")
+    return _render(request, "studio", active_nav="studio", languages=LANGUAGES)
 
 
 @router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)

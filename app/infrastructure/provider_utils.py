@@ -50,7 +50,7 @@ async def get_audio_segments(audio_data: np.ndarray, diarization_model: nn.Modul
 
     return segments
 
-async def transcribe_segment(segment: Segment, audio_data: np.ndarray, sampling_rate: int, transcription_pipeline) -> str:
+async def transcribe_segment(segment: Segment, audio_data: np.ndarray, sampling_rate: int, transcription_pipeline, language: str | None = None) -> str:
     start_time = segment.start_seconds
     end_time = segment.end_seconds
     speaker = segment.speaker
@@ -69,9 +69,12 @@ async def transcribe_segment(segment: Segment, audio_data: np.ndarray, sampling_
 
     # Use the transcription pipeline to transcribe the audio segment
     # Transcribe the segment
+    generate_kwargs: dict = {"task": "transcribe"}
+    if language:
+        generate_kwargs["language"] = language
     result = transcription_pipeline(
         audio_segment,
-        generate_kwargs={"language": "english", "task": "transcribe"},
+        generate_kwargs=generate_kwargs,
         return_timestamps=False
     )
 
@@ -81,10 +84,10 @@ async def transcribe_segment(segment: Segment, audio_data: np.ndarray, sampling_
 
     return text
 
-async def transcribe_segments(segments: list[Segment], audio_data: np.ndarray, sampling_rate: int, transcription_pipeline) -> list[TranscriptSegment]:
+async def transcribe_segments(segments: list[Segment], audio_data: np.ndarray, sampling_rate: int, transcription_pipeline, language: str | None = None) -> list[TranscriptSegment]:
     transcript_segments = []
     for segment in segments:
-        text = await transcribe_segment(segment, audio_data, sampling_rate, transcription_pipeline)
+        text = await transcribe_segment(segment, audio_data, sampling_rate, transcription_pipeline, language)
         if text:  # Only add segments that have transcribed text
             transcript_segments.append(
                 TranscriptSegment(

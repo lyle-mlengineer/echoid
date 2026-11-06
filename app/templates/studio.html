@@ -13,7 +13,28 @@
           <div class="upload-orbit"><span>↥</span></div><h2>Drop your audio right here</h2><p>or <button type="button" data-choose-file>browse files</button> from your device</p>
           <span class="upload-format">WAV · MP3 · M4A · MP4 · WEBM · OGG · FLAC</span><span class="upload-limit">Maximum file size: 25 MB</span>
         </div>
-        <div class="selected-file" data-selected-file hidden><span class="file-icon">♫</span><div><b data-file-name></b><small data-file-size></small></div><button type="button" data-remove-file aria-label="Remove selected file">×</button></div>
+        <div class="selected-file" data-selected-file hidden>
+          <div class="selected-file-top"><span class="file-icon">♫</span><div class="selected-file-meta"><b data-file-name></b><small data-file-size></small></div><button class="file-remove" type="button" data-remove-file title="Delete this audio" aria-label="Delete the selected audio">×</button></div>
+          <div class="audio-player preview-player">
+            <button class="player-toggle" type="button" data-preview-toggle aria-label="Play the selected audio">▶</button>
+            <div class="player-body">
+              <div class="player-top"><span class="player-label">Listen before transcribing</span><span class="player-time"><b data-preview-current>0:00</b><span class="player-slash">/</span><span data-preview-total>0:00</span></span></div>
+              <input class="player-track" type="range" min="0" max="100" step="0.1" value="0" aria-label="Seek within the selected audio" data-preview-track>
+            </div>
+          </div>
+        </div>
+        <div class="upload-options">
+          <label class="language-field" for="audio-language">
+            <span class="language-caption"><span>◐</span> Spoken language</span>
+            <select id="audio-language" class="language-select" data-language-select>
+              <option value="auto" selected>Auto-detect</option>
+              {% for code, name in languages %}
+              <option value="{{ code }}">{{ name }} · {{ code }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <span class="language-hint">Tell us the language and we hand the code to the transcription model.</span>
+        </div>
         <div class="upload-actions"><span class="privacy-note"><span>◈</span> Your recordings stay yours.</span><button type="button" class="button button-primary" data-transcribe disabled>Transcribe audio <span>↗</span></button></div>
         <div class="studio-status" role="status" data-studio-status hidden></div>
       </section>
@@ -33,7 +54,16 @@
       </div>
       <div class="speaker-library-grid" data-speaker-list><div class="loading-state"><span class="spinner"></span> Loading speakers…</div></div>
     </section>
-    <section class="content-panel transcript-panel" data-transcript-panel hidden><div class="panel-heading"><div><span class="eyebrow">YOUR CONVERSATION, DECODED</span><h2 data-result-title>Transcript</h2></div><div class="export-actions"><button type="button" data-export="txt">TXT <span>↧</span></button><button type="button" data-export="json">JSON <span>↧</span></button><button type="button" data-export="pdf">PDF <span>↧</span></button></div></div><div class="demo-banner" data-demo-banner hidden>DEMO TRANSCRIPT — Connect a transcription provider to analyze real audio.</div><div class="transcript-filters" data-transcript-filters>
+    <section class="content-panel transcript-panel" data-transcript-panel hidden><div class="panel-heading"><div><span class="eyebrow">YOUR CONVERSATION, DECODED</span><h2 data-result-title>Transcript</h2><span class="language-badge" data-result-language hidden></span></div><div class="export-actions"><button type="button" data-export="txt">TXT <span>↧</span></button><button type="button" data-export="json">JSON <span>↧</span></button><button type="button" data-export="pdf">PDF <span>↧</span></button></div></div><div class="demo-banner" data-demo-banner hidden>DEMO TRANSCRIPT — Connect a transcription provider to analyze real audio.</div>
+      <div class="audio-player" data-audio-player hidden>
+        <button class="player-toggle" type="button" data-player-toggle aria-label="Play recording">▶</button>
+        <div class="player-body">
+          <div class="player-top"><span class="player-label">Uploaded audio</span><span class="player-time"><b data-player-current>0:00</b><span class="player-slash">/</span><span data-player-total>0:00</span></span></div>
+          <input class="player-track" type="range" min="0" max="100" step="0.1" value="0" aria-label="Seek within the recording" data-player-track>
+        </div>
+        <button class="icon-button danger" type="button" data-delete-recording title="Delete this recording" aria-label="Delete this recording and its transcript">×</button>
+      </div>
+      <div class="transcript-filters" data-transcript-filters>
         <div class="speaker-filter" data-speaker-filter>
           <button class="filter-dropdown" type="button" data-speaker-filter-toggle aria-expanded="false" aria-controls="speaker-filter-menu"><span class="filter-dropdown-label" data-speaker-filter-label>All speakers</span><span class="filter-dropdown-caret" aria-hidden="true">▾</span></button>
           <div class="filter-menu" id="speaker-filter-menu" data-speaker-filter-menu hidden>

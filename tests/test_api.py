@@ -42,11 +42,20 @@ def test_registration_login_and_generation_exports(tmp_path):
             "/api/v1/generations",
             headers=headers,
             files={"audio": ("meeting.wav", b"sample audio", "audio/wav")},
+            data={"language": "sw"},
         )
         assert generated.status_code == 201
         result = generated.json()
         assert result["demo_mode"] is True
+        assert result["language"] == "sw"
         assert result["segments"][0]["speaker"] == "Speaker 1"
+        unsupported = client.post(
+            "/api/v1/generations",
+            headers=headers,
+            files={"audio": ("meeting.wav", b"sample audio", "audio/wav")},
+            data={"language": "klingon"},
+        )
+        assert unsupported.status_code == 422
         assert client.get("/api/v1/auth/me", headers=headers).json()["credits"] == 3
         assert client.get(
             f"/api/v1/generations/{result['id']}/export?format=txt",
@@ -328,7 +337,7 @@ def test_real_transcription_provider_charges_one_credit(tmp_path):
     class RealProvider:
         demo_mode = False
 
-        async def transcribe(self, filename, content):
+        async def transcribe(self, filename, content, language=None):
             return TranscriptionResult(
                 segments=[TranscriptSegment("Speaker 1", "Hello.", 0, 1)],
                 duration_seconds=1,

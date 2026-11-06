@@ -411,6 +411,8 @@
     let audioEl = null;
     let audioUrl = null;
     let audioGenerationId = null;
+    let previewEl = null;
+    let previewUrl = null;
     let clipButton = null;
     let clipEnd = 0;
     const filterWrap = $("[data-speaker-filter]");
@@ -427,6 +429,24 @@
     const segmentError = $("[data-segment-error]");
     const saveSegment = $("[data-save-segment]");
     let editingSegment = null;
+    const player = $("[data-audio-player]");
+    const playerToggle = $("[data-player-toggle]");
+    const playerTrack = $("[data-player-track]");
+    const playerCurrent = $("[data-player-current]");
+    const playerTotal = $("[data-player-total]");
+    const playerDelete = $("[data-delete-recording]");
+    const previewToggle = $("[data-preview-toggle]");
+    const previewTrack = $("[data-preview-track]");
+    const previewCurrent = $("[data-preview-current]");
+    const previewTotal = $("[data-preview-total]");
+    const languageSelect = $("[data-language-select]");
+    const languageBadge = $("[data-result-language]");
+
+    const showLanguage = (code) => {
+      if (!languageBadge) return;
+      languageBadge.hidden = false;
+      languageBadge.textContent = code ? `Language · ${code}` : "Language · auto-detected";
+    };
 
     const transcriptSpeakers = () => {
       const names = [];
@@ -444,8 +464,73 @@
       if (filterSearch) filterSearch.value = "";
     }
 
+    const playerClock = (seconds) => formatDuration(seconds).replace(" min", "");
+
+    function paintTrack(position, duration) {
+      const percent = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
+      playerTrack.style.setProperty("--player-progress", `${percent}%`);
+    }
+
+    function syncPlayer() {
+      if (languageBadge) languageBadge.hidden = !generationId;
+      if (!player) return;
+      player.hidden = !generationId;
+      if (!generationId) return;
+      const duration = audioEl && Number.isFinite(audioEl.duration) ? audioEl.duration : 0;
+      const position = audioEl ? audioEl.currentTime : 0;
+      playerTotal.textContent = playerClock(duration);
+      playerCurrent.textContent = playerClock(position);
+      if (document.activeElement !== playerTrack) {
+        playerTrack.max = duration || 100;
+        playerTrack.value = position;
+      }
+      paintTrack(position, duration || Number(playerTrack.max) || 0);
+      const playing = Boolean(audioEl && !audioEl.paused);
+      playerToggle.classList.toggle("is-playing", playing);
+      playerToggle.textContent = playing ? "❚❚" : "▶";
+      playerToggle.setAttribute("aria-label", playing ? "Pause recording" : "Play recording");
+    }
+
+    function syncPreview() {
+      if (!previewToggle) return;
+      const duration = previewEl && Number.isFinite(previewEl.duration) ? previewEl.duration : 0;
+      const position = previewEl ? previewEl.currentTime : 0;
+      previewTotal.textContent = playerClock(duration);
+      previewCurrent.textContent = playerClock(position);
+      if (document.activeElement !== previewTrack) {
+        previewTrack.max = duration || 100;
+        previewTrack.value = position;
+      }
+      previewTrack.style.setProperty("--player-progress", `${duration > 0 ? Math.min(100, (position / duration) * 100) : 0}%`);
+      const playing = Boolean(previewEl && !previewEl.paused);
+      previewToggle.classList.toggle("is-playing", playing);
+      previewToggle.textContent = playing ? "❚❚" : "▶";
+      previewToggle.setAttribute("aria-label", playing ? "Pause preview" : "Play preview");
+    }
+
+    function clearPreview() {
+      if (previewEl) previewEl.pause();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewEl = null;
+      previewUrl = null;
+      syncPreview();
+    }
+
+    function loadPreviewSource(file) {
+      clearPreview();
+      previewUrl = URL.createObjectURL(file);
+      previewEl = new Audio();
+      previewEl.preload = "metadata";
+      ["timeupdate", "play", "pause", "seeked", "loadedmetadata", "durationchange"].forEach((eventName) => {
+        previewEl.addEventListener(eventName, syncPreview);
+      });
+      previewEl.src = previewUrl;
+      syncPreview();
+    }
+
     function renderCurrentTranscript() {
       if (audioEl) audioEl.pause();
+      syncPlayer();
       const shown = renderTranscript(
         $("[data-transcript-results]"),
         currentSegments,
@@ -547,19 +632,29 @@
         audioEl = new Audio();
         audioEl.addEventListener("timeupdate", () => {
           if (clipButton && audioEl.currentTime >= clipEnd) audioEl.pause();
+          syncPlayer();
         });
         audioEl.addEventListener("pause", resetClipButton);
         audioEl.addEventListener("ended", resetClipButton);
+        ["play", "pause", "loadedmetadata", "seeked"].forEach((eventName) => {
+          audioEl.addEventListener(eventName, syncPlayer);
+        });
       }
       audioEl.src = audioUrl;
       audioGenerationId = id;
       if (audioEl.readyState < 1) {
-        await new Promise((resolve) => audioEl.addEventListener("loadedmetadata", resolve, { once: true }));
+        await new Promise((resolve, reject) => {
+          audioEl.addEventListener("loadedmetadata", resolve, { once: true });
+          audioEl.addEventListener("error", () => {
+            reject(new Error("This browser cannot play that audio format."));
+          }, { once: true });
+        });
       }
       return audioEl;
     }
 
     async function playClip(button, segment) {
+      if (previewEl) previewEl.pause();
       try {
         const el = await loadAudioSource(generationId);
         if (clipButton === button) {
@@ -737,6 +832,7 @@
     const setFile = (file) => {
       selectedFile = file;
       if (!file) {
+        clearPreview();
         selected.hidden = true;
         uploadArea.hidden = false;
         transcribe.disabled = true;
@@ -746,6 +842,7 @@
       uploadArea.hidden = true;
       $("[data-file-name]").textContent = file.name;
       $("[data-file-size]").textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+      loadPreviewSource(file);
       transcribe.disabled = false;
       showStatus("");
       resultPanel.hidden = true;
@@ -754,9 +851,18 @@
     };
     choose?.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", () => setFile(fileInput.files?.[0] || null));
-    $("[data-remove-file]")?.addEventListener("click", () => {
+    $("[data-remove-file]")?.addEventListener("click", async () => {
+      if (!selectedFile) return;
+      const approved = await confirmChoice({
+        title: "Delete this audio?",
+        message: `“${selectedFile.name}” has not been transcribed yet. Clearing it removes the selection and the preview — you will need to pick a file again before transcribing.`,
+        confirmLabel: "Delete audio",
+      });
+      if (!approved) return;
       fileInput.value = "";
       setFile(null);
+      showStatus("");
+      toast("Audio removed.");
     });
     ["dragenter", "dragover"].forEach((eventName) => uploadArea.addEventListener(eventName, (event) => {
       event.preventDefault();
@@ -994,6 +1100,85 @@
         saveSegment.disabled = false;
       }
     });
+    playerToggle?.addEventListener("click", async () => {
+      if (!generationId) return;
+      if (previewEl) previewEl.pause();
+      try {
+        const el = await loadAudioSource(generationId);
+        if (el.paused) await el.play();
+        else el.pause();
+      } catch (error) {
+        toast(error.message, true);
+      }
+      syncPlayer();
+    });
+    playerTrack?.addEventListener("input", async () => {
+      if (!generationId) return;
+      const seconds = Number(playerTrack.value) || 0;
+      playerCurrent.textContent = playerClock(seconds);
+      paintTrack(seconds, Number(playerTrack.max) || 0);
+      if (!audioEl) {
+        try {
+          await loadAudioSource(generationId);
+        } catch (error) {
+          toast(error.message, true);
+          return;
+        }
+      }
+      resetClipButton();
+      audioEl.currentTime = seconds;
+    });
+    previewToggle?.addEventListener("click", async () => {
+      if (!previewEl) return;
+      audioEl?.pause();
+      resetClipButton();
+      if (previewEl.paused) {
+        try {
+          await previewEl.play();
+        } catch (error) {
+          toast("This browser cannot play that audio format.", true);
+        }
+      } else previewEl.pause();
+      syncPreview();
+    });
+    previewTrack?.addEventListener("input", () => {
+      if (!previewEl) return;
+      const seconds = Number(previewTrack.value) || 0;
+      previewCurrent.textContent = playerClock(seconds);
+      previewTrack.style.setProperty("--player-progress", `${(seconds / (Number(previewTrack.max) || 1)) * 100}%`);
+      previewEl.currentTime = seconds;
+    });
+    playerDelete?.addEventListener("click", async () => {
+      if (!generationId) return;
+      const approved = await confirmChoice({
+        title: "Delete this recording?",
+        message: "The uploaded audio and its transcript are removed for good, along with the speaker names and edits you made. This cannot be undone.",
+        confirmLabel: "Delete recording",
+      });
+      if (!approved) return;
+      try {
+        await api(`/generations/${encodeURIComponent(generationId)}`, { method: "DELETE" });
+      } catch (error) {
+        toast(error.message, true);
+        return;
+      }
+      if (audioEl) audioEl.pause();
+      resetClipButton();
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      audioUrl = null;
+      audioEl = null;
+      audioGenerationId = null;
+      generationId = null;
+      currentSegments = [];
+      clearFilters();
+      resultPanel.hidden = true;
+      $$("[data-export]").forEach((button) => { button.disabled = true; });
+      syncPlayer();
+      history.replaceState(null, "", location.pathname);
+      showStatus("Recording deleted. Upload another one whenever you’re ready.");
+      toast("Recording deleted.");
+      if (accessToken()) await loadDashboard();
+    });
     loadSpeakers();
 
     async function runTranscription(file) {
@@ -1004,9 +1189,11 @@
         await ensureGuest();
         const body = new FormData();
         body.append("audio", file);
+        body.append("language", languageSelect ? languageSelect.value : "auto");
         const result = await api("/generations", { method: "POST", body });
         generationId = result.id;
         $("[data-result-title]").textContent = result.filename;
+        showLanguage(result.language);
         currentSegments = result.segments;
         clearFilters();
         renderCurrentTranscript();
@@ -1051,6 +1238,7 @@
         const generation = await api(`/generations/${encodeURIComponent(queryId)}`);
         generationId = generation.id;
         $("[data-result-title]").textContent = generation.filename;
+        showLanguage(generation.language);
         currentSegments = generation.segments;
         clearFilters();
         renderCurrentTranscript();

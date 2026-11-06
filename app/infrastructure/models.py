@@ -60,6 +60,7 @@ class GenerationRecord(Base):
     transcript_json: Mapped[str] = mapped_column(Text, default="[]")
     duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     provider: Mapped[str] = mapped_column(String(80), default="demo")
+    language: Mapped[str | None] = mapped_column(String(16), nullable=True)
     demo_mode: Mapped[bool] = mapped_column(default=True)
     credits_charged: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

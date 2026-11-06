@@ -8,7 +8,7 @@ from app.api.routes import router
 from app.web import router as web_router
 from app.core.config import Settings, get_settings
 from app.domain.events import EventBus
-from app.infrastructure.database import Base, build_database
+from app.infrastructure.database import Base, add_missing_columns, build_database
 from app.infrastructure.transcription import build_transcription_provider
 import app.infrastructure.models  # noqa: F401
 
@@ -20,6 +20,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         Base.metadata.create_all(bind=engine)
+        add_missing_columns(engine, "generations", {"language": "VARCHAR(16)"})
         config.storage_dir.mkdir(parents=True, exist_ok=True)
         yield
         engine.dispose()
