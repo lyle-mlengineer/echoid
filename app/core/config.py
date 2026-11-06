@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_env: str = "development"
     secret_key: str = "development-only-change-me"
-    database_url: str = "postgresql+psycopg://postgres:lyle@localhost:5432/echoid"
+    database_url: str | None = None
     storage_dir: Path = Path("./uploads")
     access_token_minutes: int = 60
     firebase_project_id: str | None = None
@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     payment_success_url: str = "http://localhost:8000/payment/success"
     payment_cancel_url: str = "http://localhost:8000/payment/cancel"
 
-    whisper_model_id: str | None = "openai/whisper-tiny"
-    nematron_model_id: str | None = "nvidia/Nemotron-3-Diarization"
+    whisper_model_id: str | None = None
+    nematron_model_id: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
