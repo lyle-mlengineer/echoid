@@ -506,6 +506,7 @@ async def create_generation(
             detail="Your free guest generation has been used. Sign up to continue.",
         )
     try:
+        filename: str = f"{uuid4()}{suffix}"
         result = await provider.transcribe(filename, content)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as error:
         raise HTTPException(status_code=502, detail=f"Transcription failed: {error}") from error

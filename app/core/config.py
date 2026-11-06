@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     payment_success_url: str = "http://localhost:8000/payment/success"
     payment_cancel_url: str = "http://localhost:8000/payment/cancel"
 
+    whisper_model_id: str | None = "openai/whisper-tiny"
+    nematron_model_id: str | None = "nvidia/Nemotron-3-Diarization"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

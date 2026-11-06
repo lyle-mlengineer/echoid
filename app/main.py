@@ -40,6 +40,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         StaticFiles(directory=str(Path(__file__).parent / "static")),
         name="static",
     )
+    application.mount(
+            "/audio",
+            StaticFiles(directory=str(Path(__file__).parent / "audio")),
+            name="audio",
+        )
     application.include_router(web_router)
     return application
 
