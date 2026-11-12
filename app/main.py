@@ -15,7 +15,6 @@ import app.infrastructure.models  # noqa: F401
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     config = settings or get_settings()
-    print(config)
     engine, session_factory = build_database(config.database_url)
 
     @asynccontextmanager
